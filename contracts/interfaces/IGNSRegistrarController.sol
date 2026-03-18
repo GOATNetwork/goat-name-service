@@ -39,7 +39,7 @@ interface IGNSRegistrarController {
     /// @param label The label that cannot be registered.
     error NameNotAvailable(string label);
 
-    /// @notice Reverts when `duration` is shorter than the controller minimum.
+    /// @notice Reverts when `duration` is shorter than the controller minimum registration duration.
     /// @param duration The invalid duration in seconds.
     error DurationTooShort(uint256 duration);
 

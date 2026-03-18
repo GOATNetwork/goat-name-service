@@ -143,19 +143,12 @@ sequenceDiagram
     end
 
     Controller->>PriceBook: quote(paymentToken, strlen(label), duration)
-    Controller->>Wrapper: renew(tokenId, duration)
-    Wrapper->>Registrar: renew(tokenId, duration)
-
-    alt name is wrapped and wrapper holds the registrar NFT
-        Wrapper->>Wrapper: extend wrapped expiry by registrar expiry + grace period
-    else name is unwrapped
-        Note over Wrapper: no wrapper state update is needed
-    end
+    Controller->>Registrar: renew(tokenId, duration)
 
     Controller->>Token: transferFrom(user, treasury, amountDue)
 ```
 
-All renewals route through `GoatNameWrapper.renew`, even when the name is currently unwrapped. This keeps wrapped and unwrapped names on the same public renewal entrypoint.
+Controller renewals now follow the ENS upstream `ETHRegistrarController` pattern and call `BaseRegistrarImplementation.renew` directly. `GoatNameWrapper` remains optional and is not part of the controller renewal path.
 
 ### Manual Wrapping and Subdomain Creation
 

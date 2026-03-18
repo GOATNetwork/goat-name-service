@@ -252,12 +252,6 @@ describe(".goat GNS", async function () {
       ]),
       true,
     );
-    assert.equal(
-      await fixture.goatNameWrapper.read.controllers([
-        fixture.gnsRegistrarController.address,
-      ]),
-      true,
-    );
 
     const controllerInterfaceId =
       await fixture.gnsRegistrarController.read.interfaceId();
@@ -565,6 +559,57 @@ describe(".goat GNS", async function () {
     );
   });
 
+  it("writes reverse records for registration.owner instead of the caller", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+
+    const label = normalize("broker");
+    const quotedPrice = await fixture.userController.read.rentPrice([
+      label,
+      fixture.paymentToken.address,
+      YEAR,
+    ]);
+    const request = {
+      data: [] as `0x${string}`[],
+      duration: YEAR,
+      label,
+      owner: fixture.other.account.address,
+      referrer: ZERO_HASH,
+      resolver: fixture.publicResolver.address,
+      reverseRecord: REVERSE_RECORD_ETHEREUM,
+      secret:
+        "0x4545454545454545454545454545454545454545454545454545454545454545" as const,
+    };
+    const payment = {
+      maxPaymentAmount: quotedPrice,
+      paymentToken: fixture.paymentToken.address,
+    };
+
+    await fixture.userPaymentToken.write.approve([
+      fixture.gnsRegistrarController.address,
+      quotedPrice,
+    ]);
+    await commitRequest(
+      fixture.userController,
+      request,
+      payment,
+      fixture.networkHelpers,
+    );
+    await fixture.userController.write.register([request, payment]);
+
+    assertAddress(
+      await fixture.baseRegistrar.read.ownerOf([toTokenId(label)]),
+      fixture.other.account.address,
+    );
+
+    const reverseNode = await fixture.reverseRegistrar.read.node([
+      fixture.other.account.address,
+    ]);
+    assert.equal(
+      await fixture.publicResolver.read.name([reverseNode]),
+      "broker.goat",
+    );
+  });
+
   it("supports registration and renewal through EIP-2612 permits", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
 
@@ -652,7 +697,7 @@ describe(".goat GNS", async function () {
     );
   });
 
-  it("wraps, renews, updates resolver records, creates subdomains, and unwraps `.goat` names", async function () {
+  it("wraps, renews the underlying registrar entry, updates resolver records, creates subdomains, and unwraps `.goat` names", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
 
     const label = normalize("wrapme");
@@ -721,6 +766,9 @@ describe(".goat GNS", async function () {
       "wrapped owner",
     );
 
+    const registrarExpiryBefore = await fixture.baseRegistrar.read.nameExpires([
+      tokenId,
+    ]);
     const [, , wrappedExpiryBefore] =
       await fixture.goatNameWrapper.read.getData([BigInt(node)]);
     await fixture.userPaymentToken.write.approve([
@@ -733,10 +781,14 @@ describe(".goat GNS", async function () {
       YEAR,
       quotedPrice,
     ]);
+    const registrarExpiryAfter = await fixture.baseRegistrar.read.nameExpires([
+      tokenId,
+    ]);
     const [, , wrappedExpiryAfter] = await fixture.goatNameWrapper.read.getData(
       [BigInt(node)],
     );
-    assert.ok(wrappedExpiryAfter > wrappedExpiryBefore);
+    assert.ok(registrarExpiryAfter > registrarExpiryBefore);
+    assert.equal(wrappedExpiryAfter, wrappedExpiryBefore);
 
     const childLabel = "vault";
     const childNode = namehash(`${childLabel}.${label}.goat`);

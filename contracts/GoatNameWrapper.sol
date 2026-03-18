@@ -346,7 +346,6 @@ contract GoatNameWrapper is
         uint256 duration
     ) external onlyController returns (uint256 expires) {
         bytes32 node = _makeNode(GOAT_NODE, bytes32(tokenId));
-
         uint256 registrarExpiry = registrar.renew(tokenId, duration);
 
         // Do not set anything in wrapper if name is not wrapped

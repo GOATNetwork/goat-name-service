@@ -67,7 +67,6 @@ export default buildModule("GNSModule", (m) => {
       minCommitmentAge,
       maxCommitmentAge,
       reverseRegistrar,
-      goatNameWrapper,
       ensRegistry,
       owner,
     ],
@@ -156,17 +155,6 @@ export default buildModule("GNSModule", (m) => {
       id: "setReverseRegistrarController",
       from: owner,
       after: [reverseDefaultResolver, gnsRegistrarController],
-    },
-  );
-
-  const wrapperController = m.call(
-    goatNameWrapper,
-    "setController",
-    [gnsRegistrarController, true],
-    {
-      id: "setWrapperController",
-      from: owner,
-      after: [goatNameWrapper, gnsRegistrarController],
     },
   );
 

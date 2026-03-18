@@ -6,7 +6,6 @@ import {IETHRegistrarController} from "@ensdomains/ens-contracts/contracts/ethre
 import {ENS} from "@ensdomains/ens-contracts/contracts/registry/ENS.sol";
 import {Resolver} from "@ensdomains/ens-contracts/contracts/resolvers/Resolver.sol";
 import {IReverseRegistrar} from "@ensdomains/ens-contracts/contracts/reverseRegistrar/IReverseRegistrar.sol";
-import {INameWrapper} from "@ensdomains/ens-contracts/contracts/wrapper/INameWrapper.sol";
 import {StringUtils} from "@ensdomains/ens-contracts/contracts/utils/StringUtils.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
@@ -32,7 +31,7 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
     /// @notice The upstream ENS reverse-record bit for the EVM address reverse path.
     uint8 internal constant REVERSE_RECORD_ETHEREUM_BIT = 1;
 
-    /// @notice The minimum registration or renewal duration.
+    /// @notice The minimum registration duration accepted by the commitment flow.
     uint256 public constant MIN_REGISTRATION_DURATION = 28 days;
 
     /// @notice The ENS registry used by the `.goat` registrar stack.
@@ -46,9 +45,6 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
 
     /// @notice The reverse registrar used for `addr.reverse`.
     IReverseRegistrar public immutable reverseRegistrar;
-
-    /// @notice The `.goat` name wrapper used for wrapped-name renewals.
-    INameWrapper public immutable nameWrapper;
 
     /// @notice The namehash of the `.goat` TLD managed by `baseRegistrar`.
     bytes32 public immutable baseNode;
@@ -72,7 +68,6 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
     /// @param _minCommitmentAge The minimum commitment age in seconds.
     /// @param _maxCommitmentAge The maximum commitment age in seconds.
     /// @param _reverseRegistrar The `addr.reverse` registrar.
-    /// @param _nameWrapper The `.goat` wrapper used for wrapped renewals.
     /// @param _ens The ENS registry.
     /// @param _treasury The treasury that receives ERC20 payments.
     constructor(
@@ -81,7 +76,6 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
         uint256 _minCommitmentAge,
         uint256 _maxCommitmentAge,
         IReverseRegistrar _reverseRegistrar,
-        INameWrapper _nameWrapper,
         ENS _ens,
         address _treasury
     ) {
@@ -97,7 +91,6 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
         baseRegistrar = _baseRegistrar;
         priceBook = _priceBook;
         reverseRegistrar = _reverseRegistrar;
-        nameWrapper = _nameWrapper;
         baseNode = _baseRegistrar.baseNode();
         minCommitmentAge = _minCommitmentAge;
         maxCommitmentAge = _maxCommitmentAge;
@@ -122,11 +115,8 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
     function available(
         string calldata label
     ) external view override returns (bool isAvailable) {
-        if (!valid(label)) {
-            return false;
-        }
-
-        return baseRegistrar.available(uint256(keccak256(bytes(label))));
+        bytes32 labelhash = keccak256(bytes(label));
+        return _available(label, labelhash);
     }
 
     /// @notice Returns true if the normalized label is valid for registration.
@@ -233,7 +223,7 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
     /// @notice Validates and executes a new registration.
     /// @param registration The ENS-style registration request being revealed.
     /// @param payment The ERC20 payment settings accompanying the registration.
-    /// @param amountDue The ERC20 amount already quoted and collected for the registration.
+    /// @param amountDue The ERC20 amount already quoted for the registration.
     function _register(
         IETHRegistrarController.Registration calldata registration,
         PaymentRequest calldata payment,
@@ -242,7 +232,7 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
         bytes32 labelhash = keccak256(bytes(registration.label));
         uint256 tokenId = uint256(labelhash);
 
-        if (!baseRegistrar.available(tokenId)) {
+        if (!_available(registration.label, labelhash)) {
             revert NameNotAvailable(registration.label);
         }
 
@@ -301,19 +291,15 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
     /// @param label The normalized label to renew.
     /// @param paymentToken The ERC20 used for payment.
     /// @param duration The renewal duration in seconds.
-    /// @param amountDue The ERC20 amount already quoted and collected for the renewal.
+    /// @param amountDue The ERC20 amount already quoted for the renewal.
     function _renew(
         string calldata label,
         address paymentToken,
         uint256 duration,
         uint256 amountDue
     ) internal {
-        if (duration < MIN_REGISTRATION_DURATION) {
-            revert DurationTooShort(duration);
-        }
-
         bytes32 labelhash = keccak256(bytes(label));
-        uint256 expires = nameWrapper.renew(uint256(labelhash), duration);
+        uint256 expires = baseRegistrar.renew(uint256(labelhash), duration);
 
         emit NameRenewed(label, labelhash, paymentToken, amountDue, expires);
     }
@@ -451,6 +437,17 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
         string calldata label
     ) internal pure returns (uint256 length) {
         return label.strlen();
+    }
+
+    /// @notice Returns whether `label` is valid and available on the base registrar.
+    /// @param label The normalized label without the `.goat` suffix.
+    /// @param labelhash The keccak256 hash of `label`.
+    /// @return isAvailable True when the label is valid and currently unregistered outside the grace period.
+    function _available(
+        string calldata label,
+        bytes32 labelhash
+    ) internal view returns (bool isAvailable) {
+        return valid(label) && baseRegistrar.available(uint256(labelhash));
     }
 
     /// @notice Returns the full `.goat` node for `labelhash`.
