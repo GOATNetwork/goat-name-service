@@ -363,10 +363,7 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
     /// @notice Transfers ERC20 payment to the treasury.
     /// @param paymentToken The ERC20 used for payment.
     /// @param amountDue The amount to collect.
-    function _collectPayment(
-        address paymentToken,
-        uint256 amountDue
-    ) internal {
+    function _collectPayment(address paymentToken, uint256 amountDue) internal {
         IERC20(paymentToken).safeTransferFrom(msg.sender, treasury, amountDue);
     }
 
