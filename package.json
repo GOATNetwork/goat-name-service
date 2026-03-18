@@ -1,0 +1,36 @@
+{
+  "name": "goat-name-service",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "Goat Foundation",
+  "description": "An ENS-compatible .goat naming service built on Hardhat 3",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "fmt:check": "prettier --check .",
+    "fmt": "prettier --write ."
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "plugins": [
+      "prettier-plugin-solidity"
+    ]
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^3.0.9",
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.3",
+    "@types/node": "^25.5.0",
+    "forge-std": "github:foundry-rs/forge-std#v1.9.4",
+    "hardhat": "^3.1.12",
+    "prettier": "^3.8.1",
+    "prettier-plugin-solidity": "^2.3.1",
+    "typescript": "^5.9.3",
+    "viem": "^2.47.4"
+  },
+  "dependencies": {
+    "@ensdomains/ens-contracts": "^1.7.0",
+    "@openzeppelin/contracts": "^4.9.3"
+  }
+}
