@@ -202,7 +202,8 @@ The deployment also installs interface records on `.goat`, so indexers or advanc
 
 The snippets below assume you already imported the contract ABIs from your Hardhat artifacts or a shared package.
 
-```ts
+```typescript
+import "viem/window";
 import {
   createPublicClient,
   createWalletClient,
@@ -231,7 +232,7 @@ const [account] = await walletClient.requestAddresses();
 
 ### Register A Name
 
-```ts
+```typescript
 const duration = 365n * 24n * 60n * 60n;
 const label = normalize(userInputLabel);
 const node = namehash(`${label}.goat`);
@@ -327,7 +328,7 @@ await publicClient.waitForTransactionReceipt({ hash: registerHash });
 
 For tokens that support permits, replace the `approve` call with `registerWithPermit` or `renewWithPermit`:
 
-```ts
+```typescript
 const nonce = await publicClient.readContract({
   address: paymentToken,
   abi: erc20PermitAbi,
@@ -369,7 +370,7 @@ const signature = await walletClient.signTypedData({
   },
 });
 
-const { v, r, s } = parseSignature(signature);
+const { r, s, v, yParity } = parseSignature(signature);
 
 await walletClient.writeContract({
   account,
@@ -382,7 +383,7 @@ await walletClient.writeContract({
     {
       value: amountDue,
       deadline,
-      v: Number(v),
+      v: Number(v ?? BigInt(yParity + 27)),
       r,
       s,
     },
@@ -394,7 +395,7 @@ await walletClient.writeContract({
 
 ### Wrap After Registration And Create Subdomains
 
-```ts
+```typescript
 const label = normalize("wrapme");
 const node = namehash(`${label}.goat`);
 
@@ -439,7 +440,7 @@ If your frontend exposes fuse controls, source the constants from the ENS wrappe
 
 ### Renewal Example
 
-```ts
+```typescript
 const renewPrice = await publicClient.readContract({
   address: gnsRegistrarController,
   abi: gnsRegistrarControllerAbi,

@@ -204,12 +204,13 @@ describe(".goat GNS", async function () {
       },
     });
     const signature = parseSignature(signatureHex);
+    const v = signature.v ?? BigInt(signature.yParity + 27);
 
     return {
       deadline,
       r: signature.r,
       s: signature.s,
-      v: Number(signature.v),
+      v: Number(v),
       value,
     };
   }
