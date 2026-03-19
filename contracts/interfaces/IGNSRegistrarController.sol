@@ -101,8 +101,8 @@ interface IGNSRegistrarController {
     /// @param treasury The new treasury receiving registration payments.
     event TreasuryUpdated(address indexed treasury);
 
-    /// @notice Payment parameters for a `.goat` registration.
-    /// @dev `paymentToken` is committed alongside the ENS registration struct so reveal-time token substitution is impossible.
+    /// @notice Payment parameters for a `.goat` registration or renewal.
+    /// @dev `paymentToken` is committed alongside the ENS registration struct so reveal-time token substitution is impossible for commitment-based registrations.
     /// @param paymentToken The whitelisted ERC20 used for payment.
     /// @param maxPaymentAmount The maximum token amount the caller is willing to spend.
     struct PaymentRequest {
@@ -175,27 +175,23 @@ interface IGNSRegistrarController {
 
     /// @notice Renews an existing `.goat` name using a pre-approved ERC20 allowance.
     /// @param label The normalized label to renew.
-    /// @param paymentToken The whitelisted ERC20 used for payment.
+    /// @param payment The ERC20 payment settings to use for the renewal.
     /// @param duration The renewal duration in seconds.
-    /// @param maxPaymentAmount The maximum token amount the caller is willing to spend.
     function renew(
         string calldata label,
-        address paymentToken,
-        uint256 duration,
-        uint256 maxPaymentAmount
+        PaymentRequest calldata payment,
+        uint256 duration
     ) external;
 
     /// @notice Renews an existing `.goat` name using an inline EIP-2612 permit approval.
     /// @param label The normalized label to renew.
-    /// @param paymentToken The whitelisted ERC20 used for payment.
+    /// @param payment The ERC20 payment settings to use for the renewal.
     /// @param duration The renewal duration in seconds.
-    /// @param maxPaymentAmount The maximum token amount the caller is willing to spend.
-    /// @param permit The permit signature approving `paymentToken`.
+    /// @param permit The permit signature approving `payment.paymentToken`.
     function renewWithPermit(
         string calldata label,
-        address paymentToken,
+        PaymentRequest calldata payment,
         uint256 duration,
-        uint256 maxPaymentAmount,
         PermitParams calldata permit
     ) external;
 }

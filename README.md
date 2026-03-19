@@ -136,10 +136,10 @@ sequenceDiagram
 
     alt Allowance flow
         FE->>Token: approve(controller, amountDue)
-        FE->>Controller: renew(label, paymentToken, duration, maxPaymentAmount)
+        FE->>Controller: renew(label, payment, duration)
     else Permit flow
         FE->>Token: sign EIP-2612 permit
-        FE->>Controller: renewWithPermit(label, paymentToken, duration, maxPaymentAmount, permit)
+        FE->>Controller: renewWithPermit(label, payment, duration, permit)
     end
 
     Controller->>PriceBook: quote(paymentToken, strlen(label), duration)
@@ -391,7 +391,7 @@ await walletClient.writeContract({
 });
 ```
 
-`renewWithPermit` uses the same permit shape; only the controller method arguments change.
+`renewWithPermit` uses the same permit shape; pass `[label, renewPayment, duration, permit]` instead of the approval flow arguments.
 
 ### Wrap After Registration And Create Subdomains
 
@@ -448,6 +448,11 @@ const renewPrice = await publicClient.readContract({
   args: [label, paymentToken, duration],
 });
 
+const renewPayment = {
+  paymentToken,
+  maxPaymentAmount: renewPrice,
+} as const;
+
 await walletClient.writeContract({
   account,
   address: paymentToken,
@@ -461,7 +466,7 @@ await walletClient.writeContract({
   address: gnsRegistrarController,
   abi: gnsRegistrarControllerAbi,
   functionName: "renew",
-  args: [label, paymentToken, duration, renewPrice],
+  args: [label, renewPayment, duration],
 });
 ```
 

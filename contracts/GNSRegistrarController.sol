@@ -178,36 +178,24 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
     /// @inheritdoc IGNSRegistrarController
     function renew(
         string calldata label,
-        address paymentToken,
-        uint256 duration,
-        uint256 maxPaymentAmount
+        PaymentRequest calldata payment,
+        uint256 duration
     ) external override {
-        uint256 amountDue = _quoteRenewalPayment(
-            label,
-            paymentToken,
-            duration,
-            maxPaymentAmount
-        );
-        _renew(label, paymentToken, duration, amountDue);
-        _collectPayment(paymentToken, amountDue);
+        uint256 amountDue = _quoteRenewalPayment(label, payment, duration);
+        _renew(label, payment, duration, amountDue);
+        _collectPayment(payment.paymentToken, amountDue);
     }
 
     /// @inheritdoc IGNSRegistrarController
     function renewWithPermit(
         string calldata label,
-        address paymentToken,
+        PaymentRequest calldata payment,
         uint256 duration,
-        uint256 maxPaymentAmount,
         PermitParams calldata permit
     ) external override {
-        uint256 amountDue = _quoteRenewalPayment(
-            label,
-            paymentToken,
-            duration,
-            maxPaymentAmount
-        );
-        _renew(label, paymentToken, duration, amountDue);
-        _collectPaymentWithPermit(paymentToken, amountDue, permit);
+        uint256 amountDue = _quoteRenewalPayment(label, payment, duration);
+        _renew(label, payment, duration, amountDue);
+        _collectPaymentWithPermit(payment.paymentToken, amountDue, permit);
     }
 
     /// @inheritdoc IERC165
@@ -289,19 +277,25 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
 
     /// @notice Validates and executes a renewal.
     /// @param label The normalized label to renew.
-    /// @param paymentToken The ERC20 used for payment.
+    /// @param payment The ERC20 payment settings accompanying the renewal.
     /// @param duration The renewal duration in seconds.
     /// @param amountDue The ERC20 amount already quoted for the renewal.
     function _renew(
         string calldata label,
-        address paymentToken,
+        PaymentRequest calldata payment,
         uint256 duration,
         uint256 amountDue
     ) internal {
         bytes32 labelhash = keccak256(bytes(label));
         uint256 expires = baseRegistrar.renew(uint256(labelhash), duration);
 
-        emit NameRenewed(label, labelhash, paymentToken, amountDue, expires);
+        emit NameRenewed(
+            label,
+            labelhash,
+            payment.paymentToken,
+            amountDue,
+            expires
+        );
     }
 
     /// @notice Quotes and validates the ERC20 payment for a registration.
@@ -325,24 +319,22 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
 
     /// @notice Quotes and validates the ERC20 payment for a renewal.
     /// @param label The normalized label to renew.
-    /// @param paymentToken The ERC20 used for payment.
+    /// @param payment The ERC20 payment settings accompanying the renewal.
     /// @param duration The renewal duration in seconds.
-    /// @param maxPaymentAmount The caller's maximum accepted payment.
     /// @return amountDue The token amount required for the renewal.
     function _quoteRenewalPayment(
         string calldata label,
-        address paymentToken,
-        uint256 duration,
-        uint256 maxPaymentAmount
+        PaymentRequest calldata payment,
+        uint256 duration
     ) internal view returns (uint256 amountDue) {
         amountDue = priceBook.quote(
-            paymentToken,
+            payment.paymentToken,
             _labelLength(label),
             duration
         );
 
-        if (amountDue > maxPaymentAmount) {
-            revert MaxPaymentExceeded(amountDue, maxPaymentAmount);
+        if (amountDue > payment.maxPaymentAmount) {
+            revert MaxPaymentExceeded(amountDue, payment.maxPaymentAmount);
         }
     }
 
