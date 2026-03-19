@@ -777,11 +777,7 @@ describe(".goat GNS", async function () {
       maxPaymentAmount: quotedPrice,
       paymentToken: fixture.paymentToken.address,
     };
-    await fixture.userController.write.renew([
-      label,
-      renewPayment,
-      YEAR,
-    ]);
+    await fixture.userController.write.renew([label, renewPayment, YEAR]);
     const registrarExpiryAfter = await fixture.baseRegistrar.read.nameExpires([
       tokenId,
     ]);

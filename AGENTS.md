@@ -29,6 +29,8 @@ To format all the Solidity files in the project, execute the following command:
 npm run fmt
 ```
 
+Always run `npm run fmt` before committing to ensure consistent code formatting across the project.
+
 ## Solidity Commenting Guidelines
 
 Purpose: Make contracts easier to review, audit, and maintain. Comments should explain **why**, **assumptions**, **constraints**, and **security implications**—not restate obvious code.
