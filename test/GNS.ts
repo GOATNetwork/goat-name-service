@@ -29,11 +29,7 @@ const GOAT_NODE = namehash("goat");
 const REVERSE_RECORD_ETHEREUM = 1;
 
 describe(".goat GNS", async function () {
-  const {
-    ignition: hhIgnition,
-    networkHelpers,
-    viem: hhViem,
-  } = await network.connect();
+  const { ignition, networkHelpers, viem: hhViem } = await network.connect();
   const sharedPublicClient = await hhViem.getPublicClient();
 
   type MakeCommitmentArgs = Parameters<
@@ -61,7 +57,7 @@ describe(".goat GNS", async function () {
     const [owner, user, other] = await hhViem.getWalletClients();
     const chainId = await sharedPublicClient.getChainId();
 
-    const deployment = await hhIgnition.deploy(GNSModule, {
+    const deployment = await ignition.deploy(GNSModule, {
       deploymentId: "gns-fixture",
     });
 
@@ -203,14 +199,12 @@ describe(".goat GNS", async function () {
         deadline,
       },
     });
-    const signature = parseSignature(signatureHex);
-    const v = signature.v ?? BigInt(signature.yParity + 27);
-
+    const { r, s, yParity } = parseSignature(signatureHex);
     return {
       deadline,
-      r: signature.r,
-      s: signature.s,
-      v: Number(v),
+      r,
+      s,
+      v: yParity + 27,
       value,
     };
   }

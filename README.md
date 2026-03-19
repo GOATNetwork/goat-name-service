@@ -370,7 +370,7 @@ const signature = await walletClient.signTypedData({
   },
 });
 
-const { r, s, v, yParity } = parseSignature(signature);
+const { r, s, yParity } = parseSignature(signature);
 
 await walletClient.writeContract({
   account,
@@ -383,7 +383,7 @@ await walletClient.writeContract({
     {
       value: amountDue,
       deadline,
-      v: Number(v ?? BigInt(yParity + 27)),
+      v: yParity + 27,
       r,
       s,
     },
