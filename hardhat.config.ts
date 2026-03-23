@@ -21,24 +21,31 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
+          evmVersion: "cancun",
+          metadata: {
+            bytecodeHash: "none",
+            useLiteralContent: true,
+          },
         },
       },
     },
   },
   networks: {
-    hardhatMainnet: {
+    hardhhat: {
       type: "edr-simulated",
       chainType: "l1",
     },
-    hardhatOp: {
-      type: "edr-simulated",
-      chainType: "op",
-    },
-    sepolia: {
+    testnet3: {
       type: "http",
-      chainType: "l1",
-      url: configVariable("SEPOLIA_RPC_URL"),
-      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+      url: "https://rpc.testnet3.goat.network",
+      chainType: "generic",
+      accounts: [configVariable("GOAT_TESTNET3_DEPLOY_PRIVATE_KEY")],
+    },
+    mainnet: {
+      type: "http",
+      url: "https://rpc.goat.network",
+      chainType: "generic",
+      accounts: [configVariable("GOAT_MAINNET_DEPLOY_PRIVATE_KEY")],
     },
   },
 });
