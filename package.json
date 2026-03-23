@@ -30,7 +30,7 @@
     "viem": "^2.47.5"
   },
   "dependencies": {
-    "@ensdomains/ens-contracts": "^1.7.0",
-    "@openzeppelin/contracts": "^4.9.3"
+    "@ensdomains/ens-contracts": "1.7.0",
+    "@openzeppelin/contracts": "4.9.3"
   }
 }
