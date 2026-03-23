@@ -237,12 +237,19 @@ const duration = 365n * 24n * 60n * 60n;
 const label = normalize(userInputLabel);
 const node = namehash(`${label}.goat`);
 
+// https://docs.ens.domains/ensip/11/
+const convertEVMChainIdToCoinType = (chainId: number) => {
+  return (0x80000000 | chainId) >>> 0;
+};
+
 const amountDue = await publicClient.readContract({
   address: gnsRegistrarController,
   abi: gnsRegistrarControllerAbi,
   functionName: "rentPrice",
   args: [label, paymentToken, duration],
 });
+
+const chainId = await publicClient.getChainId();
 
 const resolverData =
   resolverAddress === zeroAddress
@@ -251,7 +258,8 @@ const resolverData =
         encodeFunctionData({
           abi: publicResolverAbi,
           functionName: "setAddr",
-          args: [node, account],
+          // Don't use `setAddr` without coinType! The default coinType is 60 (ETH)
+          args: [node, convertEVMChainIdToCoinType(chainId), account],
         }),
         encodeFunctionData({
           abi: publicResolverAbi,
