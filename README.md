@@ -109,7 +109,7 @@ sequenceDiagram
     end
 
     opt reverseRecord includes EVM bit (1)
-        Controller->>Reverse: setNameForAddr(owner, owner, resolver, label.goat)
+      Controller->>Reverse: setNameForAddr(msg.sender, msg.sender, resolver, label.goat)
     end
 
     Controller->>Token: transferFrom(user, treasury, amountDue)

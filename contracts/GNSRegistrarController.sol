@@ -391,8 +391,8 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
 
         if (registration.reverseRecord & REVERSE_RECORD_ETHEREUM_BIT != 0) {
             reverseRegistrar.setNameForAddr(
-                registration.owner,
-                registration.owner,
+                msg.sender,
+                msg.sender,
                 registration.resolver,
                 string.concat(registration.label, ".goat")
             );

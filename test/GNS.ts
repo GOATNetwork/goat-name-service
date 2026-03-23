@@ -554,7 +554,7 @@ describe(".goat GNS", async function () {
     );
   });
 
-  it("writes reverse records for registration.owner instead of the caller", async function () {
+  it("writes reverse records for the caller instead of registration.owner", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
 
     const label = normalize("broker");
@@ -597,7 +597,7 @@ describe(".goat GNS", async function () {
     );
 
     const reverseNode = await fixture.reverseRegistrar.read.node([
-      fixture.other.account.address,
+      fixture.user.account.address,
     ]);
     assert.equal(
       await fixture.publicResolver.read.name([reverseNode]),
