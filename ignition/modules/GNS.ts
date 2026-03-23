@@ -1,8 +1,8 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+import { zeroHash } from "viem";
 import { labelhash, namehash } from "viem/ens";
 
-const ROOT_NODE =
-  "0x0000000000000000000000000000000000000000000000000000000000000000";
+const ROOT_NODE = zeroHash;
 const GOAT_NODE = namehash("goat");
 const GOAT_LABELHASH = labelhash("goat");
 const REVERSE_NODE = namehash("reverse");
@@ -13,7 +13,7 @@ export default buildModule("GNSModule", (m) => {
   const owner = m.getAccount(0);
   const metadataUri = m.getParameter(
     "metadataUri",
-    "https://metadata.goat/name/0x{id}",
+    "https://gns-meta.goat.network/name/0x{id}",
   );
   const minCommitmentAge = m.getParameter("minCommitmentAge", 60n);
   const maxCommitmentAge = m.getParameter("maxCommitmentAge", 86_400n);
