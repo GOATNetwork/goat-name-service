@@ -48,4 +48,39 @@ export default defineConfig({
       accounts: [configVariable("GOAT_MAINNET_DEPLOY_PRIVATE_KEY")],
     },
   },
+  chainDescriptors: {
+    2345: {
+      name: "Goat Network Mainnet",
+      chainType: "generic",
+      blockExplorers: {
+        blockscout: {
+          name: "default",
+          apiUrl: "https://explorer.goat.network/api",
+          url: "https://explorer.goat.network",
+        },
+      },
+    },
+    48816: {
+      name: "Goat Network Testnet3",
+      chainType: "generic",
+      blockExplorers: {
+        blockscout: {
+          name: "default",
+          apiUrl: "https://explorer.testnet3.goat.network/api",
+          url: "https://explorer.testnet3.goat.network",
+        },
+      },
+    },
+  },
+  verify: {
+    blockscout: {
+      enabled: true,
+    },
+    etherscan: {
+      enabled: false,
+    },
+    sourcify: {
+      enabled: false,
+    },
+  },
 });
