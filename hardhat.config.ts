@@ -1,8 +1,11 @@
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
 import { configVariable, defineConfig } from "hardhat/config";
 
+import { gnsPriceBookTasks } from "./tasks/gns-price-book.js";
+
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
+  tasks: [...gnsPriceBookTasks],
   solidity: {
     profiles: {
       default: {
