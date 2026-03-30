@@ -15,15 +15,6 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
-        },
-      },
-      production: {
-        version: "0.8.28",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
           evmVersion: "cancun",
           metadata: {
             bytecodeHash: "none",
