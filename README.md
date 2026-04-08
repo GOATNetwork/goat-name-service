@@ -6,6 +6,7 @@ An ENS-compatible `.goat` name service built on Hardhat 3, `node:test`, and `vie
 
 - ENS upstream contracts: `ENSRegistry`, `BaseRegistrarImplementation`, `PublicResolver`, `ReverseRegistrar`, `StaticMetadataService`
 - Custom contracts: `GNSPriceBook`, `GNSRegistrarController`, `GoatNameWrapper`
+- Payment bridge: `GNSX402Adaptor` for settlement-backed registration and renewal callbacks
 - Deployment: Hardhat Ignition module at `ignition/modules/GNS.ts`
 - Tests: integration coverage in `test/GNS.ts`
 
@@ -15,6 +16,7 @@ An ENS-compatible `.goat` name service built on Hardhat 3, `node:test`, and `vie
 - Fixed-price ERC20 registrations and renewals for normalized labels with length `3+`
 - Per-token annual pricing buckets for `3`, `4`, and `5+` byte names
 - `approve + transferFrom` and EIP-2612 `permit` payment flows
+- Settlement-backed x402 adaptor flow for exact-amount registrations and renewals
 - ENS-style `commit -> wait -> register` flow for new registrations
 - Manual `.goat` wrapping, wrapped-name renewals, and wrapped subdomain management
 
@@ -47,7 +49,7 @@ npm test
 
 The Ignition module deploys and initializes the full `.goat` stack in one flow:
 
-1. Deploy `ENSRegistry`, `.goat` `BaseRegistrarImplementation`, `ReverseRegistrar`, `StaticMetadataService`, `GoatNameWrapper`, `GNSPriceBook`, `GNSRegistrarController`, and `PublicResolver`
+1. Deploy `ENSRegistry`, `.goat` `BaseRegistrarImplementation`, `ReverseRegistrar`, `StaticMetadataService`, `GoatNameWrapper`, `GNSPriceBook`, `GNSRegistrarController`, `GNSX402Adaptor`, and `PublicResolver`
 2. Initialize `reverse` and `addr.reverse`
 3. Install `.goat` resolver records and interface records for the controller and wrapper
 4. Transfer `.goat` ownership to the base registrar
@@ -82,6 +84,9 @@ The default module exposes these parameters:
 - `metadataUri`: wrapper metadata URI template. Defaults to `https://gns-meta.goat.network/name/0x{id}`.
 - `minCommitmentAge`: minimum commit/reveal wait in seconds. Defaults to `60`.
 - `maxCommitmentAge`: maximum commitment lifetime in seconds. Defaults to `86400`.
+- `x402SettlementOperator`: initial authorized settlement callback caller for `GNSX402Adaptor`. Defaults to the deployer account.
+
+The module also deploys `GNSX402Adaptor`, but no frontend or backend x402 orchestration is wired in this repository yet.
 
 For default parameterized deployments, create a JSON or JSON5 file such as `ignition/GNSModule.config.json`:
 
@@ -91,7 +96,8 @@ For default parameterized deployments, create a JSON or JSON5 file such as `igni
     "treasury": "0x2222222222222222222222222222222222222222",
     "metadataUri": "https://gns-meta.goat.network/name/0x{id}",
     "minCommitmentAge": 60,
-    "maxCommitmentAge": 86400
+    "maxCommitmentAge": 86400,
+    "x402SettlementOperator": "0x3333333333333333333333333333333333333333"
   }
 }
 ```
@@ -110,7 +116,8 @@ If the final administrator is a different cold wallet or multisig, deploy `GNSWi
     "treasury": "0x2222222222222222222222222222222222222222",
     "metadataUri": "https://gns-meta.goat.network/name/0x{id}",
     "minCommitmentAge": 60,
-    "maxCommitmentAge": 86400
+    "maxCommitmentAge": 86400,
+    "x402SettlementOperator": "0x3333333333333333333333333333333333333333"
   },
   "GNSWithOwnerModule": {
     "owner": "0x1111111111111111111111111111111111111111"
@@ -128,13 +135,14 @@ For mainnet deployments with a separate owner, use the production build profile:
 npx hardhat --build-profile production ignition deploy ignition/modules/GNSWithOwner.ts --network mainnet --parameters ignition/GNSModule.config.json
 ```
 
-`GNSWithOwner.ts` reuses the base deployment and then transfers final administrative ownership of the ENS root node, `reverse` node, registrar, reverse registrar, wrapper, price book, and registrar controller. The deployer still sends all Ignition transactions. Use `GNS.ts` instead when `owner` is omitted or equals the deployer, otherwise the owner handoff would be redundant. Set `treasury` explicitly when registration fees should go to the same cold wallet or multisig. `owner` must be non-zero because the final handoff uses OpenZeppelin `transferOwnership`.
+`GNSWithOwner.ts` reuses the base deployment and then transfers final administrative ownership of the ENS root node, `reverse` node, registrar, reverse registrar, wrapper, price book, registrar controller, and x402 adaptor. The deployer still sends all Ignition transactions. Use `GNS.ts` instead when `owner` is omitted or equals the deployer, otherwise the owner handoff would be redundant. Set `treasury` explicitly when registration fees should go to the same cold wallet or multisig. `owner` must be non-zero because the final handoff uses OpenZeppelin `transferOwnership`.
 
 ## Contract Roles
 
 - `ENSRegistry`: canonical ownership, resolver, and reverse-record registry for the `.goat` stack
 - `BaseRegistrarImplementation`: ERC721 registrar for `.goat` second-level names; it owns `namehash("goat")`
 - `GNSRegistrarController`: fixed-price commit/reveal entrypoint for registrations and renewals, with ERC20 and EIP-2612 payment support
+- `GNSX402Adaptor`: controlled settlement callback contract that spends pre-funded ERC20 balances into controller `register` and `renew` calls
 - `GNSPriceBook`: whitelisted ERC20 pricing table with separate annual buckets for `3`, `4`, and `5+` character labels
 - `GoatNameWrapper`: optional ERC1155 wrapper for `.goat` names and subdomains with ENS-compatible fuse semantics
 - `PublicResolver`: stores `addr`, `text`, reverse-name data, and the interface records published for the controller and wrapper
@@ -224,6 +232,20 @@ sequenceDiagram
 ```
 
 Controller renewals now follow the ENS upstream `ETHRegistrarController` pattern and call `BaseRegistrarImplementation.renew` directly. `GoatNameWrapper` remains optional and is not part of the controller renewal path.
+
+### X402 Settlement Adaptor
+
+`GNSX402Adaptor` is the first protocol-side piece for x402 integration. It is designed for a settlement operator that receives confirmed payment callbacks and then executes:
+
+- `registerPaid(...)` for committed registrations
+- `renewPaid(...)` for renewals
+
+Current adaptor constraints:
+
+- only the configured settlement operator can execute callbacks
+- each settlement id is single-use
+- payment amounts must exactly match the live controller quote
+- reverse-record setup is rejected on the adaptor path because the controller would otherwise assign reverse records to the adaptor itself
 
 ### Manual Wrapping and Subdomain Creation
 

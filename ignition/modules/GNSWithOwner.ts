@@ -55,5 +55,11 @@ export default buildModule("GNSWithOwnerModule", (m) => {
     after: [GNSModule],
   });
 
+  m.call(deployment.gnsX402Adaptor, "transferOwnership", [owner], {
+    id: "transferGNSX402AdaptorOwnership",
+    from: deployer,
+    after: [GNSModule],
+  });
+
   return deployment;
 });
