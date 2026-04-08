@@ -73,13 +73,13 @@ export default buildModule("GNSModule", (m) => {
     ],
     { from: deployer },
   );
-  const x402SettlementOperator = m.getParameter(
-    "x402SettlementOperator",
+  const x402AuthorizedCaller = m.getParameter(
+    "x402AuthorizedCaller",
     deployer,
   );
   const gnsX402Adaptor = m.contract(
     "GNSX402Adaptor",
-    [gnsRegistrarController, x402SettlementOperator],
+    [gnsRegistrarController, x402AuthorizedCaller],
     { from: deployer, after: [gnsRegistrarController] },
   );
 
