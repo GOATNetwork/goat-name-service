@@ -72,10 +72,10 @@ export default buildModule("GNSModule", (m) => {
     ],
     { from: owner },
   );
-  const x402SettlementOperator = m.getParameter("x402SettlementOperator", owner);
+  const x402AuthorizedCaller = m.getParameter("x402AuthorizedCaller", owner);
   const gnsX402Adaptor = m.contract(
     "GNSX402Adaptor",
-    [gnsRegistrarController, x402SettlementOperator],
+    [gnsRegistrarController, x402AuthorizedCaller],
     { from: owner, after: [gnsRegistrarController] },
   );
 
