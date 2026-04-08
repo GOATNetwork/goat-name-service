@@ -15,6 +15,12 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
+          viaIR: true,
+          evmVersion: "cancun",
+          metadata: {
+            bytecodeHash: "none",
+            useLiteralContent: true,
+          },
         },
       },
       production: {
@@ -24,18 +30,18 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
+          viaIR: true,
           evmVersion: "cancun",
           metadata: {
             bytecodeHash: "none",
             useLiteralContent: true,
           },
-          viaIR: true,
         },
       },
     },
   },
   networks: {
-    hardhhat: {
+    hardhat: {
       type: "edr-simulated",
       chainType: "l1",
     },

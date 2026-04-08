@@ -73,6 +73,12 @@ export default buildModule("GNSModule", (m) => {
     ],
     { from: owner },
   );
+  const x402SettlementOperator = m.getParameter("x402SettlementOperator", owner);
+  const gnsX402Adaptor = m.contract(
+    "GNSX402Adaptor",
+    [gnsRegistrarController, x402SettlementOperator],
+    { from: owner, after: [gnsRegistrarController] },
+  );
 
   const publicResolver = m.contract(
     "PublicResolver",
@@ -167,6 +173,7 @@ export default buildModule("GNSModule", (m) => {
     goatNameWrapper,
     gnsPriceBook,
     gnsRegistrarController,
+    gnsX402Adaptor,
     publicResolver,
   };
 });
