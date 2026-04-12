@@ -59,11 +59,6 @@ describe(".goat GNS", async function () {
 
     const deployment = await ignition.deploy(GNSModule, {
       deploymentId: "gns-fixture",
-      parameters: {
-        GNSModule: {
-          treasury: owner.account.address,
-        },
-      },
     });
 
     const paymentToken = await hhViem.deployContract("MockERC20PermitToken", [
@@ -380,16 +375,12 @@ describe(".goat GNS", async function () {
     );
   });
 
-  it("requires an explicit non-zero treasury", async function () {
+  it("defaults treasury to owner and rejects zero treasury", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
 
-    await assert.rejects(
-      ignition.deploy(GNSModule, {
-        deploymentId: "gns-missing-treasury",
-      }),
-      (error) =>
-        error instanceof Error &&
-        /parameter 'treasury' requires a value/i.test(error.message),
+    assertAddress(
+      await fixture.gnsRegistrarController.read.treasury(),
+      fixture.owner.account.address,
     );
 
     await hhViem.assertions.revertWithCustomError(
