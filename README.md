@@ -6,6 +6,7 @@ An ENS-compatible `.goat` name service built on Hardhat 3, `node:test`, and `vie
 
 - ENS upstream contracts: `ENSRegistry`, `BaseRegistrarImplementation`, `PublicResolver`, `ReverseRegistrar`, `StaticMetadataService`
 - Custom contracts: `GNSPriceBook`, `GNSRegistrarController`, `GoatNameWrapper`
+- Payment bridge: `GNSX402Adaptor` for x402 callback-driven registration and renewal execution
 - Deployment: Hardhat Ignition module at `ignition/modules/GNS.ts`
 - Tests: integration coverage in `test/GNS.ts`
 
@@ -15,6 +16,7 @@ An ENS-compatible `.goat` name service built on Hardhat 3, `node:test`, and `vie
 - Fixed-price ERC20 registrations and renewals for normalized labels with length `3+`
 - Per-token annual pricing buckets for `3`, `4`, and `5+` byte names
 - `approve + transferFrom` and EIP-2612 `permit` payment flows
+- x402 callback adaptor flow for exact-amount registrations and renewals
 - ENS-style `commit -> wait -> register` flow for new registrations
 - Manual `.goat` wrapping, wrapped-name renewals, and wrapped subdomain management
 
@@ -54,12 +56,14 @@ The Ignition module deploys and initializes the full `.goat` stack in one flow:
 5. Authorize the controller on the registrar, wrapper, and reverse registrar
 
 The module defaults the treasury to the deployer account and exposes configurable `metadataUri`, `minCommitmentAge`, and `maxCommitmentAge` parameters.
+It also deploys `GNSX402Adaptor` with a configurable `x402AuthorizedCaller`, but no frontend or backend x402 orchestration is wired in this repository yet.
 
 ## Contract Roles
 
 - `ENSRegistry`: canonical ownership, resolver, and reverse-record registry for the `.goat` stack
 - `BaseRegistrarImplementation`: ERC721 registrar for `.goat` second-level names; it owns `namehash("goat")`
 - `GNSRegistrarController`: fixed-price commit/reveal entrypoint for registrations and renewals, with ERC20 and EIP-2612 payment support
+- `GNSX402Adaptor`: x402 callback target that verifies signed callback payloads, pulls ERC20 tokens from the payer, and forwards exact-price `register` and `renew` calls into the controller
 - `GNSPriceBook`: whitelisted ERC20 pricing table with separate annual buckets for `3`, `4`, and `5+` character labels
 - `GoatNameWrapper`: optional ERC1155 wrapper for `.goat` names and subdomains with ENS-compatible fuse semantics
 - `PublicResolver`: stores `addr`, `text`, reverse-name data, and the interface records published for the controller and wrapper
@@ -149,6 +153,22 @@ sequenceDiagram
 ```
 
 Controller renewals now follow the ENS upstream `ETHRegistrarController` pattern and call `BaseRegistrarImplementation.renew` directly. `GoatNameWrapper` remains optional and is not part of the controller renewal path.
+
+### X402 Callback Adaptor
+
+`GNSX402Adaptor` is the protocol-side x402 callback target. It follows the same high-level pattern as GoLucky:
+
+- the configured x402 caller triggers the adaptor callback
+- the adaptor verifies the user's EIP-712 calldata signature, nonce, and deadline
+- the adaptor pulls ERC20 tokens from the payer via EIP-3009 or Permit2
+- the adaptor decodes the callback payload and forwards the exact registration or renewal call into `GNSRegistrarController`
+
+Current adaptor constraints:
+
+- only configured authorized callers can execute x402 callbacks
+- only the `WithCalldata` callback variants are supported, because GNS registration and renewal parameters cannot be inferred from payment amount alone
+- payment amounts must exactly match the live controller quote
+- reverse-record setup is rejected on the adaptor path because the controller would otherwise assign reverse records to the adaptor itself
 
 ### Manual Wrapping and Subdomain Creation
 

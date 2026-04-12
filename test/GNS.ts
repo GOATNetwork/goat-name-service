@@ -3,7 +3,10 @@ import { describe, it } from "node:test";
 
 import { network } from "hardhat";
 import {
+  encodeAbiParameters,
   encodeFunctionData,
+  keccak256,
+  parseAbiParameters,
   parseSignature,
   parseUnits,
   zeroHash as ZERO_HASH,
@@ -27,6 +30,31 @@ const PARENT_CANNOT_CONTROL = 1n << 16n;
 const CANNOT_UNWRAP = 1n;
 const GOAT_NODE = namehash("goat");
 const REVERSE_RECORD_ETHEREUM = 1;
+const X402_PAYLOAD_ABI = parseAbiParameters(
+  "uint8 action, string label, address owner, uint256 duration, bytes32 secret, address resolver, uint8 reverseRecord, bytes32 referrer",
+);
+const EIP3009_CALLDATA_TYPES = {
+  Eip3009Calldata: [
+    { name: "token", type: "address" },
+    { name: "originalPayer", type: "address" },
+    { name: "owner", type: "address" },
+    { name: "amount", type: "uint256" },
+    { name: "calldataHash", type: "bytes32" },
+    { name: "orderId", type: "bytes32" },
+    { name: "calldataNonce", type: "uint256" },
+    { name: "calldataDeadline", type: "uint256" },
+  ],
+} as const;
+const RECEIVE_WITH_AUTHORIZATION_TYPES = {
+  ReceiveWithAuthorization: [
+    { name: "from", type: "address" },
+    { name: "to", type: "address" },
+    { name: "value", type: "uint256" },
+    { name: "validAfter", type: "uint256" },
+    { name: "validBefore", type: "uint256" },
+    { name: "nonce", type: "bytes32" },
+  ],
+} as const;
 
 describe(".goat GNS", async function () {
   const { ignition, networkHelpers, viem: hhViem } = await network.connect();
@@ -104,6 +132,16 @@ describe(".goat GNS", async function () {
       deployment.gnsRegistrarController.address,
       { client: { wallet: user } },
     );
+    const ownerX402Adaptor = await hhViem.getContractAt(
+      "GNSX402Adaptor",
+      deployment.gnsX402Adaptor.address,
+      { client: { wallet: owner } },
+    );
+    const otherX402Adaptor = await hhViem.getContractAt(
+      "GNSX402Adaptor",
+      deployment.gnsX402Adaptor.address,
+      { client: { wallet: other } },
+    );
     const otherController = await hhViem.getContractAt(
       "GNSRegistrarController",
       deployment.gnsRegistrarController.address,
@@ -143,6 +181,8 @@ describe(".goat GNS", async function () {
       altToken,
       unsupportedToken,
       userController,
+      ownerX402Adaptor,
+      otherX402Adaptor,
       otherController,
       userBaseRegistrar,
       userGoatNameWrapper,
@@ -206,6 +246,110 @@ describe(".goat GNS", async function () {
       s,
       v: yParity + 27,
       value,
+    };
+  }
+
+  function encodeX402Payload(args: {
+    action: number;
+    label: string;
+    owner: Address;
+    duration: bigint;
+    secret?: `0x${string}`;
+    resolver?: Address;
+    reverseRecord?: number;
+    referrer?: `0x${string}`;
+  }) {
+    return encodeAbiParameters(X402_PAYLOAD_ABI, [
+      args.action,
+      args.label,
+      args.owner,
+      args.duration,
+      args.secret ??
+        ("0x0000000000000000000000000000000000000000000000000000000000000000" as const),
+      args.resolver ?? zeroAddress,
+      args.reverseRecord ?? 0,
+      args.referrer ?? ZERO_HASH,
+    ]);
+  }
+
+  async function signReceiveWithAuthorization(
+    token: Awaited<ReturnType<typeof deployFixture>>["userPaymentToken"],
+    ownerWallet: Awaited<ReturnType<typeof deployFixture>>["user"],
+    to: Address,
+    value: bigint,
+    chainId: number,
+    validAfter: bigint,
+    validBefore: bigint,
+    nonce: `0x${string}`,
+  ) {
+    const tokenName = await token.read.name();
+    const signatureHex = await ownerWallet.signTypedData({
+      account: ownerWallet.account,
+      domain: {
+        chainId,
+        name: tokenName,
+        verifyingContract: token.address,
+        version: "1",
+      },
+      types: RECEIVE_WITH_AUTHORIZATION_TYPES,
+      primaryType: "ReceiveWithAuthorization",
+      message: {
+        from: ownerWallet.account.address,
+        to,
+        value,
+        validAfter,
+        validBefore,
+        nonce,
+      },
+    });
+    const { r, s, yParity } = parseSignature(signatureHex);
+    return {
+      r,
+      s,
+      v: yParity + 27,
+    };
+  }
+
+  async function signX402Eip3009Calldata(
+    adaptor: Awaited<ReturnType<typeof deployFixture>>["ownerX402Adaptor"],
+    payerWallet: Awaited<ReturnType<typeof deployFixture>>["user"],
+    chainId: number,
+    args: {
+      token: Address;
+      owner: Address;
+      amount: bigint;
+      calldata: `0x${string}`;
+      orderId: `0x${string}`;
+      calldataNonce: bigint;
+      calldataDeadline: bigint;
+    },
+  ) {
+    const signatureHex = await payerWallet.signTypedData({
+      account: payerWallet.account,
+      domain: {
+        chainId,
+        name: "GNS X402 Adaptor",
+        verifyingContract: adaptor.address,
+        version: "1",
+      },
+      types: EIP3009_CALLDATA_TYPES,
+      primaryType: "Eip3009Calldata",
+      message: {
+        token: args.token,
+        originalPayer: payerWallet.account.address,
+        owner: args.owner,
+        amount: args.amount,
+        calldataHash: keccak256(args.calldata),
+        orderId: args.orderId,
+        calldataNonce: args.calldataNonce,
+        calldataDeadline: args.calldataDeadline,
+      },
+    });
+    const { r, s, yParity } = parseSignature(signatureHex);
+    return {
+      r,
+      s,
+      v: yParity + 27,
     };
   }
 
@@ -725,6 +869,426 @@ describe(".goat GNS", async function () {
         fixture.owner.account.address,
       ]),
       quotedPrice + renewPrice,
+    );
+  });
+
+  it("processes x402 EIP-3009 callbacks into exact-price registrations and renewals", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+
+    const label = normalize("xpay");
+    const quotedPrice = await fixture.userController.read.rentPrice([
+      label,
+      fixture.paymentToken.address,
+      YEAR,
+    ]);
+    const request = {
+      data: [] as `0x${string}`[],
+      duration: YEAR,
+      label,
+      owner: fixture.user.account.address,
+      referrer: ZERO_HASH,
+      resolver: zeroAddress,
+      reverseRecord: 0,
+      secret:
+        "0x8888888888888888888888888888888888888888888888888888888888888888" as const,
+    };
+    const payment = {
+      maxPaymentAmount: quotedPrice,
+      paymentToken: fixture.paymentToken.address,
+    };
+
+    await commitRequest(
+      fixture.userController,
+      request,
+      payment,
+      fixture.networkHelpers,
+    );
+
+    const registrationCalldata = encodeX402Payload({
+      action: 1,
+      label,
+      owner: fixture.user.account.address,
+      duration: YEAR,
+      secret: request.secret,
+    });
+    const registrationOrderId =
+      "0x1010101010101010101010101010101010101010101010101010101010101010";
+    const registrationAuthNonce =
+      "0x1111111111111111111111111111111111111111111111111111111111111111";
+    const registrationCalldataDeadline = 4_102_444_800n;
+    const registrationAuthSignature = await signReceiveWithAuthorization(
+      fixture.userPaymentToken,
+      fixture.user,
+      fixture.ownerX402Adaptor.address,
+      quotedPrice,
+      fixture.chainId,
+      0n,
+      registrationCalldataDeadline,
+      registrationAuthNonce,
+    );
+    const registrationCalldataSignature = await signX402Eip3009Calldata(
+      fixture.ownerX402Adaptor,
+      fixture.user,
+      fixture.chainId,
+      {
+        token: fixture.paymentToken.address,
+        owner: fixture.user.account.address,
+        amount: quotedPrice,
+        calldata: registrationCalldata,
+        orderId: registrationOrderId,
+        calldataNonce: 1n,
+        calldataDeadline: registrationCalldataDeadline,
+      },
+    );
+    await fixture.ownerX402Adaptor.write.x402SpentEip3009WithCalldata([
+      fixture.paymentToken.address,
+      fixture.user.account.address,
+      fixture.user.account.address,
+      quotedPrice,
+      0n,
+      registrationCalldataDeadline,
+      registrationAuthNonce,
+      registrationAuthSignature.v,
+      registrationAuthSignature.r,
+      registrationAuthSignature.s,
+      registrationCalldata,
+      registrationOrderId,
+      1n,
+      registrationCalldataDeadline,
+      registrationCalldataSignature.v,
+      registrationCalldataSignature.r,
+      registrationCalldataSignature.s,
+    ]);
+
+    const tokenId = toTokenId(label);
+    const initialExpiry = await fixture.baseRegistrar.read.nameExpires([
+      tokenId,
+    ]);
+    assertAddress(
+      await fixture.baseRegistrar.read.ownerOf([tokenId]),
+      fixture.user.account.address,
+    );
+    assert.equal(
+      await fixture.paymentToken.read.balanceOf([
+        fixture.owner.account.address,
+      ]),
+      quotedPrice,
+    );
+
+    const renewPrice = await fixture.userController.read.rentPrice([
+      label,
+      fixture.paymentToken.address,
+      YEAR,
+    ]);
+    const renewalCalldata = encodeX402Payload({
+      action: 2,
+      label,
+      owner: fixture.user.account.address,
+      duration: YEAR,
+    });
+    const renewalOrderId =
+      "0x2020202020202020202020202020202020202020202020202020202020202020";
+    const renewalAuthNonce =
+      "0x2121212121212121212121212121212121212121212121212121212121212121";
+    const renewalCalldataDeadline = 4_102_444_800n;
+    const renewalAuthSignature = await signReceiveWithAuthorization(
+      fixture.userPaymentToken,
+      fixture.user,
+      fixture.ownerX402Adaptor.address,
+      renewPrice,
+      fixture.chainId,
+      0n,
+      renewalCalldataDeadline,
+      renewalAuthNonce,
+    );
+    const renewalCalldataSignature = await signX402Eip3009Calldata(
+      fixture.ownerX402Adaptor,
+      fixture.user,
+      fixture.chainId,
+      {
+        token: fixture.paymentToken.address,
+        owner: fixture.user.account.address,
+        amount: renewPrice,
+        calldata: renewalCalldata,
+        orderId: renewalOrderId,
+        calldataNonce: 2n,
+        calldataDeadline: renewalCalldataDeadline,
+      },
+    );
+    await fixture.ownerX402Adaptor.write.x402SpentEip3009WithCalldata([
+      fixture.paymentToken.address,
+      fixture.user.account.address,
+      fixture.user.account.address,
+      renewPrice,
+      0n,
+      renewalCalldataDeadline,
+      renewalAuthNonce,
+      renewalAuthSignature.v,
+      renewalAuthSignature.r,
+      renewalAuthSignature.s,
+      renewalCalldata,
+      renewalOrderId,
+      2n,
+      renewalCalldataDeadline,
+      renewalCalldataSignature.v,
+      renewalCalldataSignature.r,
+      renewalCalldataSignature.s,
+    ]);
+
+    const renewedExpiry = await fixture.baseRegistrar.read.nameExpires([
+      tokenId,
+    ]);
+    assert.ok(renewedExpiry > initialExpiry);
+    assert.equal(
+      await fixture.paymentToken.read.balanceOf([
+        fixture.owner.account.address,
+      ]),
+      quotedPrice + renewPrice,
+    );
+  });
+
+  it("rejects unsupported callback usage and prevents x402 replay", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+
+    const label = normalize("relay");
+    const quotedPrice = await fixture.userController.read.rentPrice([
+      label,
+      fixture.paymentToken.address,
+      YEAR,
+    ]);
+    const request = {
+      data: [] as `0x${string}`[],
+      duration: YEAR,
+      label,
+      owner: fixture.user.account.address,
+      referrer: ZERO_HASH,
+      resolver: fixture.publicResolver.address,
+      reverseRecord: REVERSE_RECORD_ETHEREUM,
+      secret:
+        "0x9090909090909090909090909090909090909090909090909090909090909090" as const,
+    };
+    const reverseRecordCalldata = encodeX402Payload({
+      action: 1,
+      label,
+      owner: fixture.user.account.address,
+      duration: YEAR,
+      secret: request.secret,
+      resolver: fixture.publicResolver.address,
+      reverseRecord: REVERSE_RECORD_ETHEREUM,
+    });
+    const reverseRecordOrderId =
+      "0x4040404040404040404040404040404040404040404040404040404040404040";
+    const reverseRecordNonce =
+      "0x4141414141414141414141414141414141414141414141414141414141414141";
+    const deadline = 4_102_444_800n;
+    const reverseRecordAuthSignature = await signReceiveWithAuthorization(
+      fixture.userPaymentToken,
+      fixture.user,
+      fixture.ownerX402Adaptor.address,
+      quotedPrice,
+      fixture.chainId,
+      0n,
+      deadline,
+      reverseRecordNonce,
+    );
+    const reverseRecordCalldataSignature = await signX402Eip3009Calldata(
+      fixture.ownerX402Adaptor,
+      fixture.user,
+      fixture.chainId,
+      {
+        token: fixture.paymentToken.address,
+        owner: fixture.user.account.address,
+        amount: quotedPrice,
+        calldata: reverseRecordCalldata,
+        orderId: reverseRecordOrderId,
+        calldataNonce: 3n,
+        calldataDeadline: deadline,
+      },
+    );
+
+    await hhViem.assertions.revertWithCustomError(
+      fixture.ownerX402Adaptor.write.x402SpentEip3009([
+        fixture.paymentToken.address,
+        fixture.user.account.address,
+        fixture.user.account.address,
+        quotedPrice,
+        0n,
+        deadline,
+        reverseRecordNonce,
+        reverseRecordAuthSignature.v,
+        reverseRecordAuthSignature.r,
+        reverseRecordAuthSignature.s,
+      ]),
+      fixture.ownerX402Adaptor,
+      "UnsupportedSimpleCallback",
+    );
+
+    await hhViem.assertions.revertWithCustomError(
+      fixture.otherX402Adaptor.write.x402SpentEip3009WithCalldata([
+        fixture.paymentToken.address,
+        fixture.user.account.address,
+        fixture.user.account.address,
+        quotedPrice,
+        0n,
+        deadline,
+        reverseRecordNonce,
+        reverseRecordAuthSignature.v,
+        reverseRecordAuthSignature.r,
+        reverseRecordAuthSignature.s,
+        reverseRecordCalldata,
+        reverseRecordOrderId,
+        3n,
+        deadline,
+        reverseRecordCalldataSignature.v,
+        reverseRecordCalldataSignature.r,
+        reverseRecordCalldataSignature.s,
+      ]),
+      fixture.ownerX402Adaptor,
+      "CallerNotAuthorized",
+    );
+
+    await hhViem.assertions.revertWithCustomError(
+      fixture.ownerX402Adaptor.write.x402SpentEip3009WithCalldata([
+        fixture.paymentToken.address,
+        fixture.user.account.address,
+        fixture.user.account.address,
+        quotedPrice,
+        0n,
+        deadline,
+        reverseRecordNonce,
+        reverseRecordAuthSignature.v,
+        reverseRecordAuthSignature.r,
+        reverseRecordAuthSignature.s,
+        reverseRecordCalldata,
+        reverseRecordOrderId,
+        3n,
+        deadline,
+        reverseRecordCalldataSignature.v,
+        reverseRecordCalldataSignature.r,
+        reverseRecordCalldataSignature.s,
+      ]),
+      fixture.ownerX402Adaptor,
+      "ReverseRecordNotSupported",
+    );
+
+    const validRequest = {
+      ...request,
+      resolver: zeroAddress,
+      reverseRecord: 0,
+    };
+    await commitRequest(
+      fixture.userController,
+      validRequest,
+      {
+        maxPaymentAmount: quotedPrice,
+        paymentToken: fixture.paymentToken.address,
+      },
+      fixture.networkHelpers,
+    );
+
+    const validCalldata = encodeX402Payload({
+      action: 1,
+      label,
+      owner: fixture.user.account.address,
+      duration: YEAR,
+      secret: validRequest.secret,
+    });
+    const firstOrderId =
+      "0x5050505050505050505050505050505050505050505050505050505050505050";
+    const firstAuthNonce =
+      "0x5151515151515151515151515151515151515151515151515151515151515151";
+    const firstAuthSignature = await signReceiveWithAuthorization(
+      fixture.userPaymentToken,
+      fixture.user,
+      fixture.ownerX402Adaptor.address,
+      quotedPrice,
+      fixture.chainId,
+      0n,
+      deadline,
+      firstAuthNonce,
+    );
+    const firstCalldataSignature = await signX402Eip3009Calldata(
+      fixture.ownerX402Adaptor,
+      fixture.user,
+      fixture.chainId,
+      {
+        token: fixture.paymentToken.address,
+        owner: fixture.user.account.address,
+        amount: quotedPrice,
+        calldata: validCalldata,
+        orderId: firstOrderId,
+        calldataNonce: 4n,
+        calldataDeadline: deadline,
+      },
+    );
+    await fixture.ownerX402Adaptor.write.x402SpentEip3009WithCalldata([
+      fixture.paymentToken.address,
+      fixture.user.account.address,
+      fixture.user.account.address,
+      quotedPrice,
+      0n,
+      deadline,
+      firstAuthNonce,
+      firstAuthSignature.v,
+      firstAuthSignature.r,
+      firstAuthSignature.s,
+      validCalldata,
+      firstOrderId,
+      4n,
+      deadline,
+      firstCalldataSignature.v,
+      firstCalldataSignature.r,
+      firstCalldataSignature.s,
+    ]);
+
+    const replayAuthNonce =
+      "0x5252525252525252525252525252525252525252525252525252525252525252";
+    const replayAuthSignature = await signReceiveWithAuthorization(
+      fixture.userPaymentToken,
+      fixture.user,
+      fixture.ownerX402Adaptor.address,
+      quotedPrice,
+      fixture.chainId,
+      0n,
+      deadline,
+      replayAuthNonce,
+    );
+    const replayCalldataSignature = await signX402Eip3009Calldata(
+      fixture.ownerX402Adaptor,
+      fixture.user,
+      fixture.chainId,
+      {
+        token: fixture.paymentToken.address,
+        owner: fixture.user.account.address,
+        amount: quotedPrice,
+        calldata: validCalldata,
+        orderId: firstOrderId,
+        calldataNonce: 5n,
+        calldataDeadline: deadline,
+      },
+    );
+    await hhViem.assertions.revertWithCustomError(
+      fixture.ownerX402Adaptor.write.x402SpentEip3009WithCalldata([
+        fixture.paymentToken.address,
+        fixture.user.account.address,
+        fixture.user.account.address,
+        quotedPrice,
+        0n,
+        deadline,
+        replayAuthNonce,
+        replayAuthSignature.v,
+        replayAuthSignature.r,
+        replayAuthSignature.s,
+        validCalldata,
+        firstOrderId,
+        5n,
+        deadline,
+        replayCalldataSignature.v,
+        replayCalldataSignature.r,
+        replayCalldataSignature.s,
+      ]),
+      fixture.ownerX402Adaptor,
+      "OrderAlreadyProcessed",
     );
   });
 
