@@ -67,6 +67,10 @@ interface IGNSRegistrarController {
     /// @notice Reverts when `maxCommitmentAge` is unreasonably high for the current block timestamp.
     error MaxCommitmentAgeTooHigh();
 
+    /// @notice Reverts when the treasury address is zero.
+    /// @param treasury The invalid treasury address.
+    error InvalidTreasury(address treasury);
+
     /// @notice Emitted when a `.goat` name is registered.
     /// @param label The registered label.
     /// @param labelhash The keccak256 hash of `label`.

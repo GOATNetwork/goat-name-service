@@ -87,6 +87,10 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
             revert MaxCommitmentAgeTooHigh();
         }
 
+        if (_treasury == address(0)) {
+            revert InvalidTreasury(_treasury);
+        }
+
         ens = _ens;
         baseRegistrar = _baseRegistrar;
         priceBook = _priceBook;
@@ -104,9 +108,13 @@ contract GNSRegistrarController is Ownable, ERC165, IGNSRegistrarController {
     }
 
     /// @notice Updates the treasury that receives ERC20 payments.
-    /// @dev Access: owner only.
+    /// @dev Access: owner only. Treasury must remain non-zero so ERC20 fees cannot be burned.
     /// @param newTreasury The new treasury address.
     function setTreasury(address newTreasury) external onlyOwner {
+        if (newTreasury == address(0)) {
+            revert InvalidTreasury(newTreasury);
+        }
+
         treasury = newTreasury;
         emit TreasuryUpdated(newTreasury);
     }

@@ -59,6 +59,11 @@ describe(".goat GNS", async function () {
 
     const deployment = await ignition.deploy(GNSModule, {
       deploymentId: "gns-fixture",
+      parameters: {
+        GNSModule: {
+          treasury: owner.account.address,
+        },
+      },
     });
 
     const paymentToken = await hhViem.deployContract("MockERC20PermitToken", [
@@ -247,6 +252,10 @@ describe(".goat GNS", async function () {
       ]),
       true,
     );
+    assertAddress(
+      await fixture.gnsRegistrarController.read.treasury(),
+      fixture.owner.account.address,
+    );
 
     const controllerInterfaceId =
       await fixture.gnsRegistrarController.read.interfaceId();
@@ -368,6 +377,39 @@ describe(".goat GNS", async function () {
       ]),
       fixture.gnsPriceBook,
       "InvalidPaymentToken",
+    );
+  });
+
+  it("requires an explicit non-zero treasury", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+
+    await assert.rejects(
+      ignition.deploy(GNSModule, {
+        deploymentId: "gns-missing-treasury",
+      }),
+      (error) =>
+        error instanceof Error &&
+        /parameter 'treasury' requires a value/i.test(error.message),
+    );
+
+    await hhViem.assertions.revertWithCustomError(
+      hhViem.deployContract("GNSRegistrarController", [
+        fixture.baseRegistrar.address,
+        fixture.gnsPriceBook.address,
+        60n,
+        86_400n,
+        fixture.reverseRegistrar.address,
+        fixture.ensRegistry.address,
+        zeroAddress,
+      ]),
+      fixture.gnsRegistrarController,
+      "InvalidTreasury",
+    );
+
+    await hhViem.assertions.revertWithCustomError(
+      fixture.gnsRegistrarController.write.setTreasury([zeroAddress]),
+      fixture.gnsRegistrarController,
+      "InvalidTreasury",
     );
   });
 
@@ -856,6 +898,85 @@ describe(".goat GNS", async function () {
     assertAddress(
       await fixture.ensRegistry.read.owner([unwrapNode]),
       fixture.user.account.address,
+    );
+  });
+
+  it("rejects zero-address and wrapper-address controllers when unwrapping `.goat` names", async function () {
+    const fixture = await networkHelpers.loadFixture(deployFixture);
+
+    const label = normalize("splitbrain");
+    const node = namehash(`${label}.goat`);
+    const tokenId = toTokenId(label);
+    const quotedPrice = await fixture.userController.read.rentPrice([
+      label,
+      fixture.paymentToken.address,
+      YEAR,
+    ]);
+    const request = {
+      data: [] as `0x${string}`[],
+      duration: YEAR,
+      label,
+      owner: fixture.user.account.address,
+      referrer: ZERO_HASH,
+      resolver: zeroAddress,
+      reverseRecord: 0,
+      secret:
+        "0x8888888888888888888888888888888888888888888888888888888888888888" as const,
+    };
+    const payment = {
+      maxPaymentAmount: quotedPrice,
+      paymentToken: fixture.paymentToken.address,
+    };
+
+    await fixture.userPaymentToken.write.approve([
+      fixture.gnsRegistrarController.address,
+      quotedPrice,
+    ]);
+    await commitRequest(
+      fixture.userController,
+      request,
+      payment,
+      fixture.networkHelpers,
+    );
+    await fixture.userController.write.register([request, payment]);
+    await fixture.userBaseRegistrar.write.setApprovalForAll([
+      fixture.goatNameWrapper.address,
+      true,
+    ]);
+    await fixture.userGoatNameWrapper.write.wrapGoat2LD([
+      label,
+      fixture.user.account.address,
+      0,
+      fixture.publicResolver.address,
+    ]);
+
+    await hhViem.assertions.revertWithCustomError(
+      fixture.userGoatNameWrapper.write.unwrapGoat2LD([
+        labelhash(label),
+        fixture.user.account.address,
+        zeroAddress,
+      ]),
+      fixture.goatNameWrapper,
+      "IncorrectTargetOwner",
+    );
+
+    await hhViem.assertions.revertWithCustomError(
+      fixture.userGoatNameWrapper.write.unwrapGoat2LD([
+        labelhash(label),
+        fixture.user.account.address,
+        fixture.goatNameWrapper.address,
+      ]),
+      fixture.goatNameWrapper,
+      "IncorrectTargetOwner",
+    );
+
+    assertAddress(
+      await fixture.baseRegistrar.read.ownerOf([tokenId]),
+      fixture.goatNameWrapper.address,
+    );
+    assertAddress(
+      await fixture.ensRegistry.read.owner([node]),
+      fixture.goatNameWrapper.address,
     );
   });
 });

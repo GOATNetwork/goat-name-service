@@ -418,6 +418,9 @@ contract GoatNameWrapper is
         if (registrant == address(this)) {
             revert IncorrectTargetOwner(registrant);
         }
+        if (controller == address(0x0) || controller == address(this)) {
+            revert IncorrectTargetOwner(controller);
+        }
         _unwrap(_makeNode(GOAT_NODE, labelhash), controller);
         registrar.safeTransferFrom(
             address(this),

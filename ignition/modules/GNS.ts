@@ -11,6 +11,7 @@ const ADDR_LABELHASH = labelhash("addr");
 
 export default buildModule("GNSModule", (m) => {
   const owner = m.getAccount(0);
+  const treasury = m.getParameter("treasury", owner);
   const metadataUri = m.getParameter(
     "metadataUri",
     "https://gns-meta.goat.network/name/0x{id}",
@@ -68,7 +69,7 @@ export default buildModule("GNSModule", (m) => {
       maxCommitmentAge,
       reverseRegistrar,
       ensRegistry,
-      owner,
+      treasury,
     ],
     { from: owner },
   );
