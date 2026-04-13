@@ -1,7 +1,7 @@
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
 import { configVariable, defineConfig } from "hardhat/config";
 
-import { gnsPriceBookTasks } from "./tasks/gns-price-book.js";
+import { gnsPriceBookTasks } from "./tasks/gns-price-book.ts";
 
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
@@ -15,11 +15,21 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
+        },
+      },
+      production: {
+        version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
           evmVersion: "cancun",
           metadata: {
             bytecodeHash: "none",
             useLiteralContent: true,
           },
+          viaIR: true,
         },
       },
     },
