@@ -20,3 +20,8 @@
 /coverage
 
 /tmp
+
+# Local environment
+.env
+.env.*
+!.env.example
