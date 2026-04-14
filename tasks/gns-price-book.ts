@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
+import path from "node:path";
 
+import { listDeployments, status } from "@nomicfoundation/ignition-core";
 import { emptyTask, task } from "hardhat/config";
 import { ArgumentType } from "hardhat/types/arguments";
 import type { HardhatRuntimeEnvironment } from "hardhat/types/hre";
@@ -125,34 +126,47 @@ async function connectTask(
   };
 }
 
-async function resolvePriceBookAddress(chainId: number): Promise<Address> {
-  const deploymentPath = new URL(
-    `../ignition/deployments/chain-${chainId}/deployed_addresses.json`,
-    import.meta.url,
-  );
+async function resolvePriceBookAddress(
+  hre: HardhatRuntimeEnvironment,
+  chainId: number,
+): Promise<Address> {
+  const deploymentId = `chain-${chainId}`;
+  const deploymentsDir = path.join(hre.config.paths.ignition, "deployments");
+  const deploymentIds = await listDeployments(deploymentsDir);
 
-  let deployments: Record<string, string>;
+  if (deploymentIds.length === 0) {
+    throw new Error(
+      `No Ignition deployments found in ${deploymentsDir}. Run an Ignition deployment first.`,
+    );
+  }
+
+  if (!deploymentIds.includes(deploymentId)) {
+    throw new Error(
+      `Cannot find Ignition deployment "${deploymentId}" in ${deploymentsDir}. Available deployments: ${deploymentIds.join(", ")}.`,
+    );
+  }
+
+  const deploymentDir = path.join(deploymentsDir, deploymentId);
+
+  let deploymentStatus: Awaited<ReturnType<typeof status>>;
 
   try {
-    deployments = JSON.parse(await readFile(deploymentPath, "utf8")) as Record<
-      string,
-      string
-    >;
+    deploymentStatus = await status(deploymentDir);
   } catch (error) {
     throw new Error(
-      `Cannot read Ignition deployment addresses for chainId ${chainId} at ${deploymentPath.pathname}.`,
+      `Cannot read Ignition deployment status for "${deploymentId}" at ${deploymentDir}.`,
       { cause: error },
     );
   }
 
-  const priceBookAddress = deployments[GNS_PRICE_BOOK_DEPLOYMENT_KEY];
-  if (priceBookAddress === undefined) {
+  const priceBook = deploymentStatus.contracts[GNS_PRICE_BOOK_DEPLOYMENT_KEY];
+  if (priceBook?.address === undefined) {
     throw new Error(
-      `Missing ${GNS_PRICE_BOOK_DEPLOYMENT_KEY} in ${deploymentPath.pathname}.`,
+      `Missing ${GNS_PRICE_BOOK_DEPLOYMENT_KEY} in Ignition deployment "${deploymentId}".`,
     );
   }
 
-  return getAddress(priceBookAddress);
+  return getAddress(priceBook.address);
 }
 
 async function getTokenMetadata(
@@ -321,6 +335,7 @@ export const gnsPriceBookTasks = [
     .setInlineAction(async (taskArguments, hre) => {
       const connection = await connectTask(hre);
       const priceBookAddress = await resolvePriceBookAddress(
+        hre,
         connection.chainId,
       );
       const tokenAddress = requireAddressOption("token", taskArguments.token);
@@ -390,6 +405,7 @@ export const gnsPriceBookTasks = [
     .setInlineAction(async (taskArguments, hre) => {
       const connection = await connectTask(hre);
       const priceBookAddress = await resolvePriceBookAddress(
+        hre,
         connection.chainId,
       );
       const tokenAddress = requireAddressOption("token", taskArguments.token);

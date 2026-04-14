@@ -2,7 +2,7 @@
 
 These Hardhat tasks manage the deployed `GNSPriceBook` payment-token whitelist.
 
-The tasks automatically read the `GNSPriceBook` address from `ignition/deployments/chain-<chainId>/deployed_addresses.json` using the selected network's `chainId`, so you only need to provide the token and pricing parameters.
+The tasks resolve the `GNSPriceBook` address through Hardhat Ignition's public APIs in `@nomicfoundation/ignition-core`, using the selected network's default Ignition deployment ID (`chain-<chainId>`), so you only need to provide the token and pricing parameters.
 
 ## `set-token-config`
 
@@ -44,7 +44,7 @@ npx hardhat --network mainnet gns-price-book disable-token \
 
 ## Notes
 
-- The task resolves `GNSModule#GNSPriceBook` from the Ignition deployment of the selected network.
+- The task resolves `GNSModule#GNSPriceBook` from the selected network's Ignition deployment via `listDeployments()` and `status()` from `@nomicfoundation/ignition-core`.
 - `hardhat.config.ts` expects `GOAT_TESTNET3_DEPLOY_PRIVATE_KEY` for `testnet3`.
 - `hardhat.config.ts` expects `GOAT_MAINNET_DEPLOY_PRIVATE_KEY` for `mainnet`.
 - The caller must be the `owner` of the target `GNSPriceBook` contract.
