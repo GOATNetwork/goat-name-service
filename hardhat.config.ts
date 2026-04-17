@@ -1,12 +1,13 @@
 import "dotenv/config";
 
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
+import hardhatVerify from "@nomicfoundation/hardhat-verify";
 import { configVariable, defineConfig } from "hardhat/config";
 
 import { gnsPriceBookTasks } from "./tasks/gns-price-book.ts";
 
 export default defineConfig({
-  plugins: [hardhatToolboxViemPlugin],
+  plugins: [hardhatToolboxViemPlugin, hardhatVerify],
   tasks: [...gnsPriceBookTasks],
   solidity: {
     profiles: {
