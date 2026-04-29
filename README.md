@@ -53,6 +53,15 @@ The Ignition module deploys and initializes the full `.goat` stack in one flow:
 4. Transfer `.goat` ownership to the base registrar
 5. Authorize the controller on the registrar, wrapper, and reverse registrar
 
+Before deploying to GOAT Testnet3 or GOAT Mainnet, configure the Hardhat keystore entries used by `hardhat.config.ts`:
+
+```sh
+npx hardhat keystore set GOAT_TESTNET3_DEPLOY_PRIVATE_KEY
+npx hardhat keystore set GOAT_MAINNET_DEPLOY_PRIVATE_KEY
+```
+
+Each value should be the deployer private key for that network. Use the regular production keystore for these network deployments; do not use `--dev`.
+
 Deploy to GOAT Testnet3:
 
 ```sh
