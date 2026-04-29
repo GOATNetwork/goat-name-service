@@ -53,7 +53,67 @@ The Ignition module deploys and initializes the full `.goat` stack in one flow:
 4. Transfer `.goat` ownership to the base registrar
 5. Authorize the controller on the registrar, wrapper, and reverse registrar
 
-The module defaults the treasury to the deployer account and exposes configurable `metadataUri`, `minCommitmentAge`, and `maxCommitmentAge` parameters.
+Deploy to GOAT Testnet3:
+
+```sh
+npx hardhat ignition deploy ignition/modules/GNS.ts --network testnet3
+```
+
+Deploy to GOAT Mainnet:
+
+```sh
+npx hardhat ignition deploy ignition/modules/GNS.ts --network mainnet
+```
+
+Use `GNS.ts` when the final administrator is the deployer. This is also the correct path when no separate `owner` is needed, because it does not add any owner-transfer transactions.
+
+The default module exposes these parameters:
+
+- `treasury`: recipient of registration and renewal ERC20 payments. Defaults to the deployer account.
+- `metadataUri`: wrapper metadata URI template. Defaults to `https://gns-meta.goat.network/name/0x{id}`.
+- `minCommitmentAge`: minimum commit/reveal wait in seconds. Defaults to `60`.
+- `maxCommitmentAge`: maximum commitment lifetime in seconds. Defaults to `86400`.
+
+For default parameterized deployments, create a JSON or JSON5 file such as `ignition/GNSModule.config.json`:
+
+```json
+{
+  "GNSModule": {
+    "treasury": "0x2222222222222222222222222222222222222222",
+    "metadataUri": "https://gns-meta.goat.network/name/0x{id}",
+    "minCommitmentAge": 60,
+    "maxCommitmentAge": 86400
+  }
+}
+```
+
+Then deploy with:
+
+```sh
+npx hardhat ignition deploy ignition/modules/GNS.ts --network testnet3 --parameters ignition/GNSModule.config.json
+```
+
+If the final administrator is a different cold wallet or multisig, deploy `GNSWithOwner.ts` instead:
+
+```json
+{
+  "GNSModule": {
+    "treasury": "0x2222222222222222222222222222222222222222",
+    "metadataUri": "https://gns-meta.goat.network/name/0x{id}",
+    "minCommitmentAge": 60,
+    "maxCommitmentAge": 86400
+  },
+  "GNSWithOwnerModule": {
+    "owner": "0x1111111111111111111111111111111111111111"
+  }
+}
+```
+
+```sh
+npx hardhat ignition deploy ignition/modules/GNSWithOwner.ts --network testnet3 --parameters ignition/GNSModule.config.json
+```
+
+`GNSWithOwner.ts` reuses the base deployment and then transfers final administrative ownership of the ENS root node, `reverse` node, registrar, reverse registrar, wrapper, price book, and registrar controller. The deployer still sends all Ignition transactions. Use `GNS.ts` instead when `owner` is omitted or equals the deployer, otherwise the owner handoff would be redundant. Set `treasury` explicitly when registration fees should go to the same cold wallet or multisig. `owner` must be non-zero because the final handoff uses OpenZeppelin `transferOwnership`.
 
 ## Contract Roles
 

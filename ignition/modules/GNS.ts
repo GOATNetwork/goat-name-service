@@ -98,7 +98,11 @@ export default buildModule("GNSModule", (m) => {
     reverseRegistrar,
     "setDefaultResolver",
     [publicResolver],
-    { id: "setReverseDefaultResolver", from: owner, after: [publicResolver] },
+    {
+      id: "setReverseDefaultResolver",
+      from: owner,
+      after: [publicResolver],
+    },
   );
 
   const controllerInterface = m.call(

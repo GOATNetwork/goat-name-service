@@ -13,6 +13,7 @@ import {
 import { labelhash, namehash, normalize } from "viem/ens";
 
 import GNSModule from "../ignition/modules/GNS.js";
+import GNSWithOwnerModule from "../ignition/modules/GNSWithOwner.js";
 
 function assertAddress(actual: string, expected: string) {
   assert.equal(actual.toLowerCase(), expected.toLowerCase());
@@ -211,7 +212,15 @@ describe(".goat GNS", async function () {
 
   it("deploys the ENS-compatible stack and configures resolver interfaces", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
+    const defaultFutureIds = Array.from(
+      GNSModule.futures,
+      (future) => future.id,
+    );
 
+    assertAddress(
+      await fixture.ensRegistry.read.owner([ZERO_HASH]),
+      fixture.owner.account.address,
+    );
     assertAddress(
       await fixture.ensRegistry.read.owner([GOAT_NODE]),
       fixture.baseRegistrar.address,
@@ -251,6 +260,30 @@ describe(".goat GNS", async function () {
       await fixture.gnsRegistrarController.read.treasury(),
       fixture.owner.account.address,
     );
+    assertAddress(
+      await fixture.baseRegistrar.read.owner(),
+      fixture.owner.account.address,
+    );
+    assertAddress(
+      await fixture.reverseRegistrar.read.owner(),
+      fixture.owner.account.address,
+    );
+    assertAddress(
+      await fixture.goatNameWrapper.read.owner(),
+      fixture.owner.account.address,
+    );
+    assertAddress(
+      await fixture.gnsPriceBook.read.owner(),
+      fixture.owner.account.address,
+    );
+    assertAddress(
+      await fixture.gnsRegistrarController.read.owner(),
+      fixture.owner.account.address,
+    );
+    assert.equal(
+      defaultFutureIds.some((id) => id.startsWith("GNSModule#transfer")),
+      false,
+    );
 
     const controllerInterfaceId =
       await fixture.gnsRegistrarController.read.interfaceId();
@@ -269,6 +302,79 @@ describe(".goat GNS", async function () {
         wrapperInterfaceId,
       ]),
       fixture.goatNameWrapper.address,
+    );
+  });
+
+  it("transfers final administrative ownership to the configured owner", async function () {
+    const [deployer, , configuredOwner] = await hhViem.getWalletClients();
+
+    const deployment = await ignition.deploy(GNSWithOwnerModule, {
+      deploymentId: "gns-configured-owner",
+      parameters: {
+        GNSWithOwnerModule: {
+          owner: configuredOwner.account.address,
+        },
+      },
+    });
+
+    assertAddress(
+      await deployment.ensRegistry.read.owner([ZERO_HASH]),
+      configuredOwner.account.address,
+    );
+    assertAddress(
+      await deployment.ensRegistry.read.owner([GOAT_NODE]),
+      deployment.baseRegistrar.address,
+    );
+    assertAddress(
+      await deployment.ensRegistry.read.owner([namehash("reverse")]),
+      configuredOwner.account.address,
+    );
+    assertAddress(
+      await deployment.ensRegistry.read.owner([namehash("addr.reverse")]),
+      deployment.reverseRegistrar.address,
+    );
+    assertAddress(
+      await deployment.baseRegistrar.read.owner(),
+      configuredOwner.account.address,
+    );
+    assertAddress(
+      await deployment.reverseRegistrar.read.owner(),
+      configuredOwner.account.address,
+    );
+    assertAddress(
+      await deployment.goatNameWrapper.read.owner(),
+      configuredOwner.account.address,
+    );
+    assertAddress(
+      await deployment.gnsPriceBook.read.owner(),
+      configuredOwner.account.address,
+    );
+    assertAddress(
+      await deployment.gnsRegistrarController.read.owner(),
+      configuredOwner.account.address,
+    );
+    assertAddress(
+      await deployment.gnsRegistrarController.read.treasury(),
+      deployer.account.address,
+    );
+
+    assert.equal(
+      await deployment.baseRegistrar.read.controllers([
+        deployment.goatNameWrapper.address,
+      ]),
+      true,
+    );
+    assert.equal(
+      await deployment.baseRegistrar.read.controllers([
+        deployment.gnsRegistrarController.address,
+      ]),
+      true,
+    );
+    assert.equal(
+      await deployment.reverseRegistrar.read.controllers([
+        deployment.gnsRegistrarController.address,
+      ]),
+      true,
     );
   });
 
@@ -375,7 +481,7 @@ describe(".goat GNS", async function () {
     );
   });
 
-  it("defaults treasury to owner and rejects zero treasury", async function () {
+  it("defaults treasury to deployer and rejects zero treasury", async function () {
     const fixture = await networkHelpers.loadFixture(deployFixture);
 
     assertAddress(
