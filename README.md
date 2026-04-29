@@ -62,7 +62,7 @@ npx hardhat ignition deploy ignition/modules/GNS.ts --network testnet3
 Deploy to GOAT Mainnet:
 
 ```sh
-npx hardhat ignition deploy ignition/modules/GNS.ts --network mainnet
+npx hardhat --build-profile production ignition deploy ignition/modules/GNS.ts --network mainnet
 ```
 
 Use `GNS.ts` when the final administrator is the deployer. This is also the correct path when no separate `owner` is needed, because it does not add any owner-transfer transactions.
@@ -111,6 +111,12 @@ If the final administrator is a different cold wallet or multisig, deploy `GNSWi
 
 ```sh
 npx hardhat ignition deploy ignition/modules/GNSWithOwner.ts --network testnet3 --parameters ignition/GNSModule.config.json
+```
+
+For mainnet deployments with a separate owner, use the production build profile:
+
+```sh
+npx hardhat --build-profile production ignition deploy ignition/modules/GNSWithOwner.ts --network mainnet --parameters ignition/GNSModule.config.json
 ```
 
 `GNSWithOwner.ts` reuses the base deployment and then transfers final administrative ownership of the ENS root node, `reverse` node, registrar, reverse registrar, wrapper, price book, and registrar controller. The deployer still sends all Ignition transactions. Use `GNS.ts` instead when `owner` is omitted or equals the deployer, otherwise the owner handoff would be redundant. Set `treasury` explicitly when registration fees should go to the same cold wallet or multisig. `owner` must be non-zero because the final handoff uses OpenZeppelin `transferOwnership`.
