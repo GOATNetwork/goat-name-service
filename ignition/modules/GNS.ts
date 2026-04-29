@@ -10,8 +10,8 @@ const REVERSE_LABELHASH = labelhash("reverse");
 const ADDR_LABELHASH = labelhash("addr");
 
 export default buildModule("GNSModule", (m) => {
-  const owner = m.getAccount(0);
-  const treasury = m.getParameter("treasury", owner);
+  const deployer = m.getAccount(0);
+  const treasury = m.getParameter("treasury", deployer);
   const metadataUri = m.getParameter(
     "metadataUri",
     "https://gns-meta.goat.network/name/0x{id}",
@@ -19,21 +19,21 @@ export default buildModule("GNSModule", (m) => {
   const minCommitmentAge = m.getParameter("minCommitmentAge", 60n);
   const maxCommitmentAge = m.getParameter("maxCommitmentAge", 86_400n);
 
-  const ensRegistry = m.contract("ENSRegistry", [], { from: owner });
+  const ensRegistry = m.contract("ENSRegistry", [], { from: deployer });
   const baseRegistrar = m.contract(
     "BaseRegistrarImplementation",
     [ensRegistry, GOAT_NODE],
-    { from: owner },
+    { from: deployer },
   );
   const reverseRegistrar = m.contract("ReverseRegistrar", [ensRegistry], {
-    from: owner,
+    from: deployer,
   });
 
   const reverseOwner = m.call(
     ensRegistry,
     "setSubnodeOwner",
-    [ROOT_NODE, REVERSE_LABELHASH, owner],
-    { id: "setReverseOwner", from: owner, after: [ensRegistry] },
+    [ROOT_NODE, REVERSE_LABELHASH, deployer],
+    { id: "setReverseOwner", from: deployer, after: [ensRegistry] },
   );
 
   const addrReverseOwner = m.call(
@@ -42,7 +42,7 @@ export default buildModule("GNSModule", (m) => {
     [REVERSE_NODE, ADDR_LABELHASH, reverseRegistrar],
     {
       id: "setAddrReverseOwner",
-      from: owner,
+      from: deployer,
       after: [reverseOwner, reverseRegistrar],
     },
   );
@@ -50,16 +50,16 @@ export default buildModule("GNSModule", (m) => {
   const staticMetadataService = m.contract(
     "StaticMetadataService",
     [metadataUri],
-    { from: owner },
+    { from: deployer },
   );
 
   const goatNameWrapper = m.contract(
     "GoatNameWrapper",
     [ensRegistry, baseRegistrar, staticMetadataService],
-    { from: owner, after: [addrReverseOwner] },
+    { from: deployer, after: [addrReverseOwner] },
   );
 
-  const gnsPriceBook = m.contract("GNSPriceBook", [], { from: owner });
+  const gnsPriceBook = m.contract("GNSPriceBook", [], { from: deployer });
   const gnsRegistrarController = m.contract(
     "GNSRegistrarController",
     [
@@ -71,20 +71,20 @@ export default buildModule("GNSModule", (m) => {
       ensRegistry,
       treasury,
     ],
-    { from: owner },
+    { from: deployer },
   );
 
   const publicResolver = m.contract(
     "PublicResolver",
     [ensRegistry, goatNameWrapper, gnsRegistrarController, reverseRegistrar],
-    { from: owner, after: [addrReverseOwner, gnsRegistrarController] },
+    { from: deployer, after: [addrReverseOwner, gnsRegistrarController] },
   );
 
   const goatRecord = m.call(
     ensRegistry,
     "setSubnodeRecord",
-    [ROOT_NODE, GOAT_LABELHASH, owner, publicResolver, 0n],
-    { id: "setGoatRecord", from: owner, after: [publicResolver] },
+    [ROOT_NODE, GOAT_LABELHASH, deployer, publicResolver, 0n],
+    { id: "setGoatRecord", from: deployer, after: [publicResolver] },
   );
 
   const controllerInterfaceId = m.staticCall(
@@ -100,7 +100,7 @@ export default buildModule("GNSModule", (m) => {
     [publicResolver],
     {
       id: "setReverseDefaultResolver",
-      from: owner,
+      from: deployer,
       after: [publicResolver],
     },
   );
@@ -109,14 +109,14 @@ export default buildModule("GNSModule", (m) => {
     publicResolver,
     "setInterface",
     [GOAT_NODE, controllerInterfaceId, gnsRegistrarController],
-    { id: "setControllerInterface", from: owner, after: [goatRecord] },
+    { id: "setControllerInterface", from: deployer, after: [goatRecord] },
   );
 
   const wrapperInterface = m.call(
     publicResolver,
     "setInterface",
     [GOAT_NODE, wrapperInterfaceId, goatNameWrapper],
-    { id: "setWrapperInterface", from: owner, after: [goatRecord] },
+    { id: "setWrapperInterface", from: deployer, after: [goatRecord] },
   );
 
   const goatOwner = m.call(
@@ -125,7 +125,7 @@ export default buildModule("GNSModule", (m) => {
     [ROOT_NODE, GOAT_LABELHASH, baseRegistrar],
     {
       id: "setGoatOwner",
-      from: owner,
+      from: deployer,
       after: [controllerInterface, wrapperInterface],
     },
   );
@@ -136,7 +136,7 @@ export default buildModule("GNSModule", (m) => {
     [goatNameWrapper],
     {
       id: "addWrapperController",
-      from: owner,
+      from: deployer,
       after: [goatOwner, goatNameWrapper],
     },
   );
@@ -147,7 +147,7 @@ export default buildModule("GNSModule", (m) => {
     [gnsRegistrarController],
     {
       id: "addRegistrarController",
-      from: owner,
+      from: deployer,
       after: [goatOwner, gnsRegistrarController],
     },
   );
@@ -158,7 +158,7 @@ export default buildModule("GNSModule", (m) => {
     [gnsRegistrarController, true],
     {
       id: "setReverseRegistrarController",
-      from: owner,
+      from: deployer,
       after: [reverseDefaultResolver, gnsRegistrarController],
     },
   );
