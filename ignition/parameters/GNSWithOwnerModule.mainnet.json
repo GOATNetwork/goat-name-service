@@ -1,0 +1,12 @@
+{
+    "GNSModule": {
+      "treasury": "0x40d49900dd6cda86cda08162ccf60c22c15f6079",
+      "metadataUri": "https://gns-meta.goat.network/name/0x{id}",
+      "minCommitmentAge": 60,
+      "maxCommitmentAge": 86400,
+      "x402AuthorizedCaller": "0x211514377efE034E1E0410388cCE1a2bF10131F2"
+    },
+    "GNSWithOwnerModule": {
+      "owner": "0x328e4572a87eA65F2f90321C57c1a6e8459911BB"
+    }
+  }

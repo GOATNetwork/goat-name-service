@@ -1,0 +1,59 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-f46a7ae8f95968d7bdc505cc9dd6bdf2d87c140a",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "compilerType": "solc",
+  "toolVersions": {
+    "hardhat": "3.4.0"
+  },
+  "userSourceNameMap": {
+    "contracts/upstream/StaticMetadataService.sol": "project/contracts/upstream/StaticMetadataService.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "metadata": {
+        "bytecodeHash": "none",
+        "useLiteralContent": true
+      },
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": [
+        "project/:@ensdomains/ens-contracts/=npm/@ensdomains/ens-contracts@1.7.0/"
+      ],
+      "viaIR": true
+    },
+    "sources": {
+      "npm/@ensdomains/ens-contracts@1.7.0/contracts/wrapper/StaticMetadataService.sol": {
+        "content": "//SPDX-License-Identifier: MIT\npragma solidity ~0.8.17;\n\ncontract StaticMetadataService {\n    string private _uri;\n\n    constructor(string memory _metaDataUri) {\n        _uri = _metaDataUri;\n    }\n\n    function uri(uint256) public view returns (string memory) {\n        return _uri;\n    }\n}\n"
+      },
+      "project/contracts/upstream/StaticMetadataService.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\nimport {StaticMetadataService as UpstreamStaticMetadataService} from \"@ensdomains/ens-contracts/contracts/wrapper/StaticMetadataService.sol\";\n\n/// @title StaticMetadataService\n/// @notice Re-exports the upstream static metadata service with a local artifact name for Hardhat Ignition.\n/// @dev This contract only forwards constructor execution to the upstream implementation.\ncontract StaticMetadataService is UpstreamStaticMetadataService {\n    /// @notice Deploys the static metadata service.\n    /// @param metadataUri The metadata URI template returned for every wrapped token.\n    constructor(\n        string memory metadataUri\n    ) UpstreamStaticMetadataService(metadataUri) {}\n}\n"
+      }
+    }
+  }
+}
