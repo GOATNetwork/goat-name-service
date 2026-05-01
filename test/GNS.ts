@@ -34,16 +34,16 @@ const REVERSE_RECORD_ETHEREUM = 1;
 const X402_PAYLOAD_ABI = parseAbiParameters(
   "uint8 action, string label, address owner, uint256 duration, bytes32 secret, address resolver, uint8 reverseRecord, bytes32 referrer",
 );
-const EIP3009_CALLDATA_TYPES = {
-  Eip3009Calldata: [
+const EIP3009_CALLBACK_DATA_TYPES = {
+  Eip3009CallbackData: [
     { name: "token", type: "address" },
-    { name: "originalPayer", type: "address" },
     { name: "owner", type: "address" },
+    { name: "payer", type: "address" },
     { name: "amount", type: "uint256" },
-    { name: "calldataHash", type: "bytes32" },
     { name: "orderId", type: "bytes32" },
     { name: "calldataNonce", type: "uint256" },
-    { name: "calldataDeadline", type: "uint256" },
+    { name: "deadline", type: "uint256" },
+    { name: "calldataHash", type: "bytes32" },
   ],
 } as const;
 const RECEIVE_WITH_AUTHORIZATION_TYPES = {
@@ -333,17 +333,17 @@ describe(".goat GNS", async function () {
         verifyingContract: adaptor.address,
         version: "1",
       },
-      types: EIP3009_CALLDATA_TYPES,
-      primaryType: "Eip3009Calldata",
+      types: EIP3009_CALLBACK_DATA_TYPES,
+      primaryType: "Eip3009CallbackData",
       message: {
         token: args.token,
-        originalPayer: payerWallet.account.address,
         owner: args.owner,
+        payer: payerWallet.account.address,
         amount: args.amount,
-        calldataHash: keccak256(args.calldata),
         orderId: args.orderId,
         calldataNonce: args.calldataNonce,
-        calldataDeadline: args.calldataDeadline,
+        deadline: args.calldataDeadline,
+        calldataHash: keccak256(args.calldata),
       },
     });
     const { r, s, yParity } = parseSignature(signatureHex);

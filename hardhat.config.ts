@@ -5,10 +5,11 @@ import hardhatVerify from "@nomicfoundation/hardhat-verify";
 import { configVariable, defineConfig } from "hardhat/config";
 
 import { gnsPriceBookTasks } from "./tasks/gns-price-book.ts";
+import { gnsX402AdaptorTasks } from "./tasks/gns-x402-adaptor.ts";
 
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin, hardhatVerify],
-  tasks: [...gnsPriceBookTasks],
+  tasks: [...gnsPriceBookTasks, ...gnsX402AdaptorTasks],
   solidity: {
     profiles: {
       default: {

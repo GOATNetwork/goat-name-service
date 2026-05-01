@@ -17,24 +17,31 @@ import {IX402Callback} from "./interfaces/IX402Callback.sol";
 /// @title GNSX402Adaptor
 /// @notice GoatX402 callback target for `.goat` registrations and renewals.
 /// @dev
-/// - Mirrors the GoLucky x402 callback model: authorized x402 callers trigger the adaptor,
-///   the adaptor verifies user-signed calldata, pulls tokens, and executes registrar logic.
-/// - GNS only supports the `WithCalldata` callback variants because registration and renewal
-///   parameters cannot be derived from payment amount alone.
-/// - Reverse-record writes are rejected on this path because they would bind reverse ownership
-///   to the adaptor instead of the end-user.
+/// - EIP-712 typed data schema MUST match the GoatX402 server's emitted typed data
+///   (see `Eip3009CallbackData` / `Permit2CallbackData` in the GoatX402 demo
+///   MerchantCallback contract). Any divergence in type name, field name, or
+///   field order produces a different typehash and the signature recovery
+///   reverts with `InvalidCalldataSignature`.
+/// - GNS only supports the `WithCalldata` callback variants because registration
+///   and renewal parameters cannot be derived from payment amount alone.
+/// - Reverse-record writes are rejected on this path because they would bind
+///   reverse ownership to the adaptor instead of the end-user.
 contract GNSX402Adaptor is IX402Callback, EIP712, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint8 internal constant ACTION_REGISTER = 1;
     uint8 internal constant ACTION_RENEW = 2;
 
-    bytes32 public constant EIP3009_CALLDATA_TYPEHASH = keccak256(
-        "Eip3009Calldata(address token,address originalPayer,address owner,uint256 amount,bytes32 calldataHash,bytes32 orderId,uint256 calldataNonce,uint256 calldataDeadline)"
+    /// @dev Typehash MUST match GoatX402 server's emitted Eip3009CallbackData
+    ///      schema (field names, order, and the type name itself).
+    bytes32 public constant EIP3009_CALLBACK_DATA_TYPEHASH = keccak256(
+        "Eip3009CallbackData(address token,address owner,address payer,uint256 amount,bytes32 orderId,uint256 calldataNonce,uint256 deadline,bytes32 calldataHash)"
     );
 
-    bytes32 public constant PERMIT2_CALLDATA_TYPEHASH = keccak256(
-        "Permit2Calldata(address permit2,address token,address originalPayer,address owner,uint256 amount,bytes32 calldataHash,bytes32 orderId,uint256 calldataNonce,uint256 calldataDeadline)"
+    /// @dev Typehash MUST match GoatX402 server's emitted Permit2CallbackData
+    ///      schema (field names, order, and the type name itself).
+    bytes32 public constant PERMIT2_CALLBACK_DATA_TYPEHASH = keccak256(
+        "Permit2CallbackData(address permit2,address token,address owner,address payer,uint256 amount,bytes32 orderId,uint256 calldataNonce,uint256 deadline,bytes32 calldataHash)"
     );
 
     error CallerNotAuthorized();
@@ -362,17 +369,18 @@ contract GNSX402Adaptor is IX402Callback, EIP712, Ownable, ReentrancyGuard {
             revert CalldataNonceAlreadyUsed();
         }
 
+        // Field order MUST match Eip3009CallbackData typehash exactly.
         bytes32 structHash = keccak256(
             abi.encode(
-                EIP3009_CALLDATA_TYPEHASH,
+                EIP3009_CALLBACK_DATA_TYPEHASH,
                 token,
-                originalPayer,
-                owner,
+                owner,                 // typehash field "owner" (= TSS)
+                originalPayer,         // typehash field "payer" (= user)
                 amount,
-                keccak256(calldata_),
                 orderId,
                 calldataNonce,
-                calldataDeadline
+                calldataDeadline,      // typehash field "deadline"
+                keccak256(calldata_)
             )
         );
 
@@ -411,18 +419,19 @@ contract GNSX402Adaptor is IX402Callback, EIP712, Ownable, ReentrancyGuard {
             revert CalldataNonceAlreadyUsed();
         }
 
+        // Field order MUST match Permit2CallbackData typehash exactly.
         bytes32 structHash = keccak256(
             abi.encode(
-                PERMIT2_CALLDATA_TYPEHASH,
+                PERMIT2_CALLBACK_DATA_TYPEHASH,
                 permit2,
                 token,
-                originalPayer,
-                owner,
+                owner,                 // typehash field "owner" (= TSS)
+                originalPayer,         // typehash field "payer" (= user)
                 amount,
-                keccak256(calldata_),
                 orderId,
                 calldataNonce,
-                calldataDeadline
+                calldataDeadline,      // typehash field "deadline"
+                keccak256(calldata_)
             )
         );
 
