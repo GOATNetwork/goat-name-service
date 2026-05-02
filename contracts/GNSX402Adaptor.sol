@@ -374,12 +374,12 @@ contract GNSX402Adaptor is IX402Callback, EIP712, Ownable, ReentrancyGuard {
             abi.encode(
                 EIP3009_CALLBACK_DATA_TYPEHASH,
                 token,
-                owner,                 // typehash field "owner" (= TSS)
-                originalPayer,         // typehash field "payer" (= user)
+                owner, // typehash field "owner" (= TSS)
+                originalPayer, // typehash field "payer" (= user)
                 amount,
                 orderId,
                 calldataNonce,
-                calldataDeadline,      // typehash field "deadline"
+                calldataDeadline, // typehash field "deadline"
                 keccak256(calldata_)
             )
         );
@@ -425,12 +425,12 @@ contract GNSX402Adaptor is IX402Callback, EIP712, Ownable, ReentrancyGuard {
                 PERMIT2_CALLBACK_DATA_TYPEHASH,
                 permit2,
                 token,
-                owner,                 // typehash field "owner" (= TSS)
-                originalPayer,         // typehash field "payer" (= user)
+                owner, // typehash field "owner" (= TSS)
+                originalPayer, // typehash field "payer" (= user)
                 amount,
                 orderId,
                 calldataNonce,
-                calldataDeadline,      // typehash field "deadline"
+                calldataDeadline, // typehash field "deadline"
                 keccak256(calldata_)
             )
         );
