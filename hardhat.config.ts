@@ -1,14 +1,11 @@
-import "dotenv/config";
-
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
-import hardhatVerify from "@nomicfoundation/hardhat-verify";
 import { configVariable, defineConfig } from "hardhat/config";
 
 import { gnsPriceBookTasks } from "./tasks/gns-price-book.ts";
 import { gnsX402AdaptorTasks } from "./tasks/gns-x402-adaptor.ts";
 
 export default defineConfig({
-  plugins: [hardhatToolboxViemPlugin, hardhatVerify],
+  plugins: [hardhatToolboxViemPlugin],
   tasks: [...gnsPriceBookTasks, ...gnsX402AdaptorTasks],
   solidity: {
     profiles: {
@@ -84,17 +81,6 @@ export default defineConfig({
           url: "https://explorer.testnet3.goat.network",
         },
       },
-    },
-  },
-  verify: {
-    blockscout: {
-      enabled: true,
-    },
-    etherscan: {
-      enabled: false,
-    },
-    sourcify: {
-      enabled: false,
     },
   },
 });
