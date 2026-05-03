@@ -2,10 +2,11 @@ import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
 import { configVariable, defineConfig } from "hardhat/config";
 
 import { gnsPriceBookTasks } from "./tasks/gns-price-book.ts";
+import { gnsX402AdaptorTasks } from "./tasks/gns-x402-adaptor.ts";
 
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
-  tasks: [...gnsPriceBookTasks],
+  tasks: [...gnsPriceBookTasks, ...gnsX402AdaptorTasks],
   solidity: {
     profiles: {
       default: {
@@ -14,6 +15,12 @@ export default defineConfig({
           optimizer: {
             enabled: true,
             runs: 200,
+          },
+          viaIR: true,
+          evmVersion: "cancun",
+          metadata: {
+            bytecodeHash: "none",
+            useLiteralContent: true,
           },
         },
       },
@@ -24,18 +31,18 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
+          viaIR: true,
           evmVersion: "cancun",
           metadata: {
             bytecodeHash: "none",
             useLiteralContent: true,
           },
-          viaIR: true,
         },
       },
     },
   },
   networks: {
-    hardhhat: {
+    hardhat: {
       type: "edr-simulated",
       chainType: "l1",
     },
@@ -74,17 +81,6 @@ export default defineConfig({
           url: "https://explorer.testnet3.goat.network",
         },
       },
-    },
-  },
-  verify: {
-    blockscout: {
-      enabled: true,
-    },
-    etherscan: {
-      enabled: false,
-    },
-    sourcify: {
-      enabled: false,
     },
   },
 });

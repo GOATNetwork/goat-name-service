@@ -73,6 +73,15 @@ export default buildModule("GNSModule", (m) => {
     ],
     { from: deployer },
   );
+  const x402AuthorizedCaller = m.getParameter(
+    "x402AuthorizedCaller",
+    deployer,
+  );
+  const gnsX402Adaptor = m.contract(
+    "GNSX402Adaptor",
+    [gnsRegistrarController, x402AuthorizedCaller],
+    { from: deployer, after: [gnsRegistrarController] },
+  );
 
   const publicResolver = m.contract(
     "PublicResolver",
@@ -171,6 +180,7 @@ export default buildModule("GNSModule", (m) => {
     goatNameWrapper,
     gnsPriceBook,
     gnsRegistrarController,
+    gnsX402Adaptor,
     publicResolver,
   };
 });
